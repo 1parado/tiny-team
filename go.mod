@@ -1,6 +1,6 @@
 module tiny-multiagent-go
 
-go 1.25
+go 1.22
 
 require github.com/pkoukk/tiktoken-go v0.1.8
 
