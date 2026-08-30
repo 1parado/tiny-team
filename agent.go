@@ -8,46 +8,6 @@ import (
 	"time"
 )
 
-// Tool is the smallest unit of capability an agent can use.
-type Tool interface {
-	// Spec describes the tool to the LLM as an OpenAI function schema.
-	Spec() FunctionSpec
-	// Execute runs the tool with JSON-encoded arguments and returns the
-	// observation to feed back into the caller's memory.
-	Execute(ctx context.Context, argsJSON string) (string, error)
-}
-
-// finalAnswerName is the built-in tool that terminates the ReAct loop,
-// mirroring smolagents' FinalAnswerTool.
-const finalAnswerName = "final_answer"
-
-// FinalAnswerTool reports the end of a task; its result is the agent's answer.
-type FinalAnswerTool struct{}
-
-func (FinalAnswerTool) Spec() FunctionSpec {
-	return FunctionSpec{
-		Name:        finalAnswerName,
-		Description: "Provide the final answer to the task. This ends your run.",
-		Parameters: map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"answer": map[string]any{"type": "string", "description": "The final answer."},
-			},
-			"required": []string{"answer"},
-		},
-	}
-}
-
-func (FinalAnswerTool) Execute(_ context.Context, argsJSON string) (string, error) {
-	var args struct {
-		Answer string `json:"answer"`
-	}
-	if err := json.Unmarshal([]byte(argsJSON), &args); err != nil {
-		return "", err
-	}
-	return args.Answer, nil
-}
-
 // managedTaskTemplate wraps a task delegated to a managed agent, mirroring
 // smolagents' managed_agent.task prompt (agents.py __call__).
 const managedTaskTemplate = "You are team member %q. Solve the task below and report back to your manager.\n\nTask:\n%s"
@@ -91,11 +51,15 @@ type RunResult struct {
 // registered as a ManagedAgent of another agent ("agent as tool"): to the
 // manager's model it looks like an ordinary function taking a single "task"
 // string, while running its own full loop with its own memory.
+//
+// Tools come from two places:
+//   - Registry: a shared/plugin catalogue that can grow at runtime via create_tool
+//   - ManagedAgents: other agents exposed as tools
 type Agent struct {
 	Name          string
 	Description   string
 	Model         Model
-	Tools         []Tool
+	Registry      *ToolRegistry // plugin catalogue (read/write/shell/search/...)
 	ManagedAgents []*Agent
 	MaxSteps      int
 	Verbose       bool
@@ -107,8 +71,7 @@ type Agent struct {
 }
 
 // Spec makes a managed agent look like a tool to its manager, mirroring how
-// smolagents pins managed agents to a single "task" string input (agents.py
-// _setup_managed_agents).
+// smolagents pins managed agents to a single "task" string input.
 func (a *Agent) Spec() FunctionSpec {
 	return FunctionSpec{
 		Name:        a.Name,
@@ -162,7 +125,10 @@ func (a *Agent) Run(ctx context.Context, task string) (RunResult, error) {
 	for step := 1; step <= a.MaxSteps; step++ {
 		a.logf("step %d", step)
 		a.trace(TraceEvent{Type: "step", Agent: a.Name, Step: step})
-		reply, usage, err := a.chatWithRetries(ctx, a.memory, a.functionSpecs())
+
+		// Rebuild tool catalogue every step so create_tool registrations appear.
+		specs := a.functionSpecs()
+		reply, usage, err := a.chatWithRetries(ctx, a.memory, specs)
 		if err != nil {
 			a.trace(TraceEvent{Type: "error", Agent: a.Name, Text: err.Error()})
 			return RunResult{}, fmt.Errorf("step %d: %w", step, err)
@@ -180,6 +146,10 @@ func (a *Agent) Run(ctx context.Context, task string) (RunResult, error) {
 			Usage: usage, ToolCalls: toolCallSummaries(reply.ToolCalls),
 		})
 		a.memory = append(a.memory, reply)
+
+		// Refresh system prompt in memory if tools were added (create_tool).
+		a.maybeRefreshSystemPrompt()
+
 		var final string
 		done := false
 		for _, call := range reply.ToolCalls {
@@ -211,7 +181,7 @@ func (a *Agent) Run(ctx context.Context, task string) (RunResult, error) {
 // made by delegated sub-agents.
 func (a *Agent) LastUsage() TokenUsage { return a.lastUsage }
 
-// maxModelRetries bounds retries of transient model-call failures such as
+// maxModelRetries bounds retries on transient model-call failures such as
 // gateway timeouts (HTTP 524) or dropped connections.
 const maxModelRetries = 3
 
@@ -239,8 +209,7 @@ func (a *Agent) chatWithRetries(ctx context.Context, messages []ChatMessage, too
 
 // executeToolCall runs one tool call and returns the string observation plus
 // the token usage of delegated sub-agents. Execution errors become
-// "Error: ..." so the model can self-correct, like smolagents logging
-// AgentError into memory (agents.py _run_stream).
+// "Error: ..." so the model can self-correct.
 func (a *Agent) executeToolCall(ctx context.Context, call ToolCall) (string, TokenUsage) {
 	start := time.Now()
 	tool, ok := a.toolByName(call.Function.Name)
@@ -253,13 +222,13 @@ func (a *Agent) executeToolCall(ctx context.Context, call ToolCall) (string, Tok
 		})
 		return msg, TokenUsage{}
 	}
+	// Managed agent (delegation).
 	if sub, ok := tool.(*Agent); ok {
-		// Delegated: the sub-agent runs its own full loop; count its usage.
 		a.trace(TraceEvent{
 			Type: "delegate_start", Agent: a.Name, ToolName: sub.Name, Args: call.Function.Arguments,
 		})
 		if a.Tracer != nil {
-			a.Tracer.Enter() // nest the sub-agent's events one level deeper
+			a.Tracer.Enter()
 		}
 		out, err := sub.Execute(ctx, call.Function.Arguments)
 		if a.Tracer != nil {
@@ -297,8 +266,8 @@ func (a *Agent) toolByName(name string) (Tool, bool) {
 	if name == finalAnswerName {
 		return FinalAnswerTool{}, true
 	}
-	for _, t := range a.Tools {
-		if t.Spec().Name == name {
+	if a.Registry != nil {
+		if t, ok := a.Registry.Get(name); ok {
 			return t, true
 		}
 	}
@@ -312,8 +281,8 @@ func (a *Agent) toolByName(name string) (Tool, bool) {
 
 func (a *Agent) toolNames() []string {
 	names := []string{finalAnswerName}
-	for _, t := range a.Tools {
-		names = append(names, t.Spec().Name)
+	if a.Registry != nil {
+		names = append(names, a.Registry.Names()...)
 	}
 	for _, ma := range a.ManagedAgents {
 		names = append(names, ma.Name)
@@ -322,10 +291,12 @@ func (a *Agent) toolNames() []string {
 }
 
 func (a *Agent) functionSpecs() []FunctionSpec {
-	specs := make([]FunctionSpec, 0, 2+len(a.Tools)+len(a.ManagedAgents))
+	specs := make([]FunctionSpec, 0, 4)
 	specs = append(specs, FinalAnswerTool{}.Spec())
-	for _, t := range a.Tools {
-		specs = append(specs, t.Spec())
+	if a.Registry != nil {
+		for _, t := range a.Registry.List() {
+			specs = append(specs, t.Spec())
+		}
 	}
 	for _, ma := range a.ManagedAgents {
 		specs = append(specs, ma.Spec())
@@ -333,19 +304,31 @@ func (a *Agent) functionSpecs() []FunctionSpec {
 	return specs
 }
 
-// systemPrompt describes the agent and its catalog of tools and team members.
+// systemPrompt describes the agent and its catalogue of tools and team members.
 func (a *Agent) systemPrompt() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "You are %s, an agent solving tasks step by step (ReAct).\n", a.Name)
 	if a.Description != "" {
 		b.WriteString(a.Description + "\n")
 	}
-	b.WriteString("\nOn each step, think briefly, then call exactly one tool with valid JSON arguments.\nWhen the task is solved, call final_answer with the result.\n\nAvailable tools and team members:\n")
+	b.WriteString("\nOn each step, think briefly, then call one or more tools with valid JSON arguments.\n")
+	b.WriteString("When the task is solved, call final_answer with the result.\n")
+	b.WriteString("You may author new tools at runtime with create_tool when existing plugins are not enough.\n")
+	b.WriteString("\nAvailable tools and team members:\n")
 	for _, spec := range a.functionSpecs() {
 		fmt.Fprintf(&b, "\n- %s: %s\n", spec.Name, spec.Description)
 		fmt.Fprintf(&b, "  arguments: %s\n", mustMarshalCompact(spec.Parameters))
 	}
 	return b.String()
+}
+
+// maybeRefreshSystemPrompt rewrites the system message when the tool catalogue
+// may have grown (after create_tool), so the model sees newly registered tools.
+func (a *Agent) maybeRefreshSystemPrompt() {
+	if len(a.memory) == 0 || a.memory[0].Role != "system" {
+		return
+	}
+	a.memory[0].Content = a.systemPrompt()
 }
 
 func mustMarshalCompact(v any) string {
