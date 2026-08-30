@@ -2,290 +2,397 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="tiny-team — Go 迷你多智能体框架。Agent-as-Tool，一切即插件。" />
-  <title>tiny-team · Agents as tools</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="description" content="tiny-team — Go 迷你多智能体框架。Agents that call agents like tools." />
+  <meta name="theme-color" content="#f5f5f7" />
+  <title>tiny-team</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #0b0d10;
-      --bg-elevated: #12151a;
-      --bg-card: #161a21;
-      --border: rgba(255, 255, 255, 0.08);
-      --text: #e8eaed;
-      --muted: #8b939e;
-      --faint: #5c6570;
-      --accent: #5b9cff;
-      --accent-soft: rgba(91, 156, 255, 0.12);
-      --green: #3dd68c;
-      --green-soft: rgba(61, 214, 140, 0.12);
-      --purple: #a78bfa;
-      --purple-soft: rgba(167, 139, 250, 0.12);
-      --orange: #f0a35e;
-      --radius: 14px;
-      --max: 880px;
+      --bg: #f5f5f7;
+      --surface: #ffffff;
+      --text: #1d1d1f;
+      --text-secondary: #6e6e73;
+      --text-tertiary: #86868b;
+      --separator: rgba(0, 0, 0, 0.08);
+      --blue: #0071e3;
+      --green: #34c759;
+      --orange: #ff9f0a;
+      --purple: #af52de;
+      --radius: 18px;
+      --radius-sm: 12px;
+      --shadow: 0 2px 12px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
+      --shadow-hover: 0 8px 28px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+      --max: 920px;
+      --font: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+      --mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
     body {
-      font-family: "DM Sans", system-ui, -apple-system, sans-serif;
+      font-family: var(--font);
       background: var(--bg);
       color: var(--text);
-      line-height: 1.6;
+      line-height: 1.5;
       -webkit-font-smoothing: antialiased;
     }
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      background:
-        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(91, 156, 255, 0.15), transparent 50%),
-        radial-gradient(ellipse 40% 30% at 90% 60%, rgba(167, 139, 250, 0.06), transparent 50%);
-      pointer-events: none;
-      z-index: 0;
+    .wrap { max-width: var(--max); margin: 0 auto; padding: 0 22px; }
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 20;
+      background: rgba(245, 245, 247, 0.82);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      margin: 0 -22px; padding: 16px 22px 12px;
     }
-    .wrap { position: relative; z-index: 1; max-width: var(--max); margin: 0 auto; padding: 0 24px; }
-    nav { display: flex; align-items: center; justify-content: space-between; padding: 28px 0 0; }
-    .logo { font-weight: 700; font-size: 1.05rem; letter-spacing: -0.02em; color: var(--text); text-decoration: none; }
-    .logo span { color: var(--accent); }
-    .nav-links { display: flex; gap: 8px; align-items: center; }
+    .nav-brand {
+      font-size: 1.125rem; font-weight: 700; letter-spacing: -0.03em;
+      color: var(--text); text-decoration: none;
+    }
+    .nav-brand span { font-weight: 500; color: var(--text-tertiary); }
+    .nav-links { display: flex; gap: 4px; align-items: center; }
     .nav-links a {
-      color: var(--muted); text-decoration: none; font-size: 0.9rem; font-weight: 500;
-      padding: 8px 14px; border-radius: 999px; transition: color 0.15s, background 0.15s;
+      color: var(--text-secondary); text-decoration: none; font-size: 0.875rem;
+      font-weight: 500; padding: 8px 12px; border-radius: 980px;
+      transition: background 0.2s, color 0.2s;
     }
-    .nav-links a:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); }
+    .nav-links a:hover { color: var(--text); background: rgba(0, 0, 0, 0.04); }
     .btn {
-      display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px;
-      border-radius: 999px; font-weight: 600; font-size: 0.92rem; text-decoration: none;
-      transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 11px 20px; border-radius: 980px; font-weight: 500; font-size: 0.9rem;
+      text-decoration: none; transition: transform 0.15s, background 0.15s, box-shadow 0.15s;
+      border: none; cursor: pointer;
     }
-    .btn:hover { transform: translateY(-1px); }
-    .btn-primary {
-      background: var(--accent); color: #0b0d10;
-      box-shadow: 0 0 0 1px rgba(91, 156, 255, 0.3), 0 8px 24px rgba(91, 156, 255, 0.2);
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--blue); color: #fff; }
+    .btn-primary:hover { background: #0077ed; box-shadow: 0 4px 14px rgba(0, 113, 227, 0.28); }
+    .btn-secondary { background: rgba(0, 0, 0, 0.05); color: var(--text); }
+    .btn-secondary:hover { background: rgba(0, 0, 0, 0.08); }
+    .hero { padding: 64px 0 56px; text-align: center; }
+    .hero-label {
+      display: inline-block; font-size: 0.8rem; font-weight: 600;
+      letter-spacing: 0.04em; text-transform: uppercase; color: var(--blue); margin-bottom: 20px;
     }
-    .btn-primary:hover { box-shadow: 0 0 0 1px rgba(91, 156, 255, 0.5), 0 12px 32px rgba(91, 156, 255, 0.28); }
-    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
-    .btn-ghost:hover { background: rgba(255, 255, 255, 0.04); }
-    header.hero { padding: 72px 0 56px; text-align: center; }
-    .badge {
-      display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px;
-      background: var(--accent-soft); color: var(--accent); font-size: 0.8rem; font-weight: 600;
-      letter-spacing: 0.02em; margin-bottom: 28px; border: 1px solid rgba(91, 156, 255, 0.2);
+    .hero h1 {
+      font-size: clamp(2.75rem, 8vw, 4rem); font-weight: 700;
+      letter-spacing: -0.045em; line-height: 1.05; margin-bottom: 8px;
     }
-    .badge i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
-    h1 { font-size: clamp(2.2rem, 5vw, 3.2rem); font-weight: 700; letter-spacing: -0.04em; line-height: 1.15; margin-bottom: 20px; }
-    h1 em {
-      font-style: normal;
-      background: linear-gradient(135deg, var(--accent), var(--purple));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    .hero h1 .dot { color: var(--blue); }
+    .hero-tagline {
+      font-size: clamp(1.2rem, 3vw, 1.45rem); font-weight: 500;
+      letter-spacing: -0.02em; color: var(--text-secondary); margin-bottom: 20px;
     }
-    .lead { font-size: 1.15rem; color: var(--muted); max-width: 520px; margin: 0 auto 36px; line-height: 1.65; }
-    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
-    section { padding: 48px 0; }
-    section h2 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 8px; }
-    .section-desc { color: var(--muted); font-size: 0.95rem; margin-bottom: 28px; }
-    .grid { display: grid; gap: 14px; }
-    .grid-3 { grid-template-columns: repeat(3, 1fr); }
-    @media (max-width: 700px) {
-      .grid-3 { grid-template-columns: 1fr; }
-      nav { flex-direction: column; gap: 16px; align-items: flex-start; }
+    .hero-desc {
+      font-size: 1.05rem; color: var(--text-tertiary); max-width: 480px;
+      margin: 0 auto 32px; line-height: 1.6;
     }
-    .card {
-      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
-      padding: 22px 22px 20px; transition: border-color 0.2s, transform 0.2s;
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+    section { padding: 40px 0 48px; }
+    .section-label {
+      font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px;
     }
-    .card:hover { border-color: rgba(255, 255, 255, 0.14); transform: translateY(-2px); }
-    .card .icon {
-      width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center;
-      justify-content: center; font-size: 1rem; margin-bottom: 14px;
+    section h2 {
+      font-size: 1.75rem; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 8px;
     }
-    .icon.blue { background: var(--accent-soft); }
-    .icon.green { background: var(--green-soft); }
-    .icon.purple { background: var(--purple-soft); }
-    .card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 6px; letter-spacing: -0.02em; }
-    .card p { font-size: 0.9rem; color: var(--muted); line-height: 1.55; }
-    .plugin-list { display: grid; gap: 8px; }
-    .plugin {
-      display: grid; grid-template-columns: 140px 1fr; gap: 16px; align-items: start;
-      padding: 14px 18px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    .section-lead {
+      font-size: 1.05rem; color: var(--text-secondary); margin-bottom: 28px; max-width: 520px;
     }
-    @media (max-width: 560px) { .plugin { grid-template-columns: 1fr; gap: 4px; } }
-    .plugin code {
-      font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.82rem; font-weight: 500;
-      color: var(--accent); background: var(--accent-soft); padding: 3px 8px; border-radius: 6px; width: fit-content;
+    .flow-board {
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 36px 24px 32px; overflow-x: auto;
     }
-    .plugin span { font-size: 0.9rem; color: var(--muted); }
-    .plugin.meta code { color: var(--purple); background: var(--purple-soft); }
-    .code-block { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-    .code-header {
-      display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border);
-      font-size: 0.78rem; color: var(--faint); font-family: "JetBrains Mono", monospace;
+    .flow-diagram { display: flex; flex-direction: column; align-items: center; min-width: 280px; }
+    .flow-row {
+      display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px 16px;
     }
-    .code-header .dot { width: 8px; height: 8px; border-radius: 50%; background: #3a3f48; }
-    .code-header .dot:nth-child(1) { background: #ff5f57; }
-    .code-header .dot:nth-child(2) { background: #febc2e; }
-    .code-header .dot:nth-child(3) { background: #28c840; }
+    .node {
+      background: var(--surface); border: 1px solid var(--separator); border-radius: 14px;
+      padding: 14px 18px; min-width: 120px; text-align: center;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    .node:hover { box-shadow: var(--shadow-hover); border-color: rgba(0, 0, 0, 0.12); }
+    .node-title {
+      font-size: 0.9rem; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 2px;
+    }
+    .node-sub { font-size: 0.72rem; color: var(--text-tertiary); font-weight: 500; }
+    .node.manager {
+      border-color: rgba(0, 113, 227, 0.25);
+      background: linear-gradient(180deg, #f8fbff 0%, #fff 100%);
+    }
+    .node.manager .node-title { color: var(--blue); }
+    .node.agent {
+      border-color: rgba(175, 82, 222, 0.22);
+      background: linear-gradient(180deg, #fcf8ff 0%, #fff 100%);
+    }
+    .node.agent .node-title { color: var(--purple); }
+    .node.tool {
+      border-color: rgba(52, 199, 89, 0.25);
+      background: linear-gradient(180deg, #f6fcf7 0%, #fff 100%);
+      min-width: 100px; padding: 12px 14px;
+    }
+    .node.tool .node-title {
+      font-family: var(--mono); font-size: 0.78rem; color: var(--green);
+    }
+    .node.meta {
+      border-color: rgba(255, 159, 10, 0.3);
+      background: linear-gradient(180deg, #fffbf5 0%, #fff 100%);
+    }
+    .node.meta .node-title {
+      font-family: var(--mono); font-size: 0.78rem; color: var(--orange);
+    }
+    .v-line {
+      width: 2px; height: 28px; border-radius: 2px;
+      background: linear-gradient(180deg, rgba(0, 113, 227, 0.35), rgba(175, 82, 222, 0.35));
+    }
+    .h-line { width: 24px; height: 2px; background: var(--separator); flex-shrink: 0; }
+    .flow-label {
+      font-size: 0.7rem; font-weight: 600; letter-spacing: 0.04em;
+      text-transform: uppercase; color: var(--text-tertiary); margin: 4px 0 10px; text-align: center;
+    }
+    .tools-row {
+      display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 4px;
+    }
+    .flow-caption {
+      text-align: center; font-size: 0.85rem; color: var(--text-tertiary);
+      margin-top: 24px; line-height: 1.5;
+    }
+    .flow-caption code {
+      font-family: var(--mono); font-size: 0.8em; background: rgba(0,0,0,0.04);
+      padding: 1px 5px; border-radius: 4px;
+    }
+    .principles { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (min-width: 640px) { .principles { grid-template-columns: 1fr 1fr; } }
+    .principle {
+      background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
+      padding: 24px 22px; transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .principle:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); }
+    .principle-num {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em;
+      color: var(--blue); margin-bottom: 10px;
+    }
+    .principle h3 {
+      font-size: 1.05rem; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 8px;
+    }
+    .principle p { font-size: 0.925rem; color: var(--text-secondary); line-height: 1.55; }
+    .plugin-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;
+    }
+    .plugin-chip {
+      background: var(--surface); border-radius: var(--radius-sm); box-shadow: var(--shadow);
+      padding: 16px 14px; text-align: center; transition: box-shadow 0.2s;
+    }
+    .plugin-chip:hover { box-shadow: var(--shadow-hover); }
+    .plugin-chip code {
+      font-family: var(--mono); font-size: 0.8rem; font-weight: 500;
+      color: var(--blue); display: block; margin-bottom: 4px;
+    }
+    .plugin-chip.highlight code { color: var(--orange); }
+    .plugin-chip span { font-size: 0.75rem; color: var(--text-tertiary); }
+    .code-card {
+      background: #1d1d1f; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);
+    }
+    .code-bar {
+      display: flex; align-items: center; gap: 6px; padding: 12px 16px; background: #2c2c2e;
+    }
+    .code-bar .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .code-bar .dot.r { background: #ff5f57; }
+    .code-bar .dot.y { background: #febc2e; }
+    .code-bar .dot.g { background: #28c840; }
+    .code-bar span {
+      margin-left: 8px; font-size: 0.72rem; color: #98989d; font-family: var(--mono);
+    }
     pre {
-      padding: 20px 18px; overflow-x: auto; font-family: "JetBrains Mono", ui-monospace, monospace;
-      font-size: 0.82rem; line-height: 1.7; color: #c8cdd5;
+      padding: 20px 18px 22px; overflow-x: auto; font-family: var(--mono);
+      font-size: 0.8rem; line-height: 1.7; color: #e5e5ea;
     }
-    pre .c { color: #6b7280; }
-    pre .k { color: #7cb8ff; }
-    pre .s { color: #9ece6a; }
-    .flow {
-      display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px;
-      padding: 28px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+    pre .c { color: #8e8e93; }
+    pre .s { color: #32d74b; }
+    footer {
+      padding: 40px 0 48px; text-align: center;
+      border-top: 1px solid var(--separator); margin-top: 16px;
     }
-    .flow-node {
-      padding: 12px 18px; border-radius: 10px; font-size: 0.88rem; font-weight: 600;
-      letter-spacing: -0.01em; text-align: center;
+    .footer-name {
+      font-size: 1rem; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 6px;
     }
-    .flow-node.manager { background: var(--accent-soft); color: var(--accent); border: 1px solid rgba(91, 156, 255, 0.25); }
-    .flow-node.agent { background: var(--purple-soft); color: var(--purple); border: 1px solid rgba(167, 139, 250, 0.25); }
-    .flow-node.tool { background: var(--green-soft); color: var(--green); border: 1px solid rgba(61, 214, 140, 0.25); }
-    .flow-arrow { color: var(--faint); font-size: 1.1rem; }
-    footer { padding: 48px 0 56px; border-top: 1px solid var(--border); margin-top: 24px; text-align: center; }
-    footer p { color: var(--faint); font-size: 0.85rem; }
-    footer a { color: var(--muted); text-decoration: none; }
-    footer a:hover { color: var(--accent); }
-    .footer-links { display: flex; gap: 20px; justify-content: center; margin-bottom: 16px; }
+    .footer-name span { color: var(--text-tertiary); font-weight: 500; }
+    footer p { font-size: 0.85rem; color: var(--text-tertiary); margin-bottom: 16px; }
+    .footer-links { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+    .footer-links a {
+      font-size: 0.85rem; font-weight: 500; color: var(--blue); text-decoration: none;
+    }
+    .footer-links a:hover { text-decoration: underline; }
+    @media (max-width: 600px) {
+      .nav-links a:not(.btn) { display: none; }
+      .hero { padding: 48px 0 40px; }
+      section { padding: 32px 0 40px; }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <nav>
-      <a class="logo" href="#">tiny<span>-team</span></a>
+      <a class="nav-brand" href="#">tiny<span>-team</span></a>
       <div class="nav-links">
-        <a href="#features">特性</a>
-        <a href="#plugins">插件</a>
-        <a href="#quickstart">快速开始</a>
-        <a class="btn btn-ghost" href="https://github.com/1parado/tiny-team" target="_blank" rel="noopener">GitHub</a>
+        <a href="#flow">流程</a>
+        <a href="#principles">原理</a>
+        <a href="#start">开始</a>
+        <a class="btn btn-secondary" style="padding: 8px 14px; font-size: 0.85rem;" href="https://github.com/1parado/tiny-team" target="_blank" rel="noopener">GitHub</a>
       </div>
     </nav>
 
     <header class="hero">
-      <div class="badge"><i></i> Go · Multi-Agent · Apache-2.0</div>
-      <h1>Agents that call agents<br /><em>like tools</em></h1>
-      <p class="lead">
-        迷你多智能体框架：管理者把子智能体当工具调用，成员各自跑独立 ReAct 循环。
-        一切即插件——模型还能运行时为自己编写底层工具。
+      <div class="hero-label">Open Source · Go</div>
+      <h1>tiny<span class="dot">-</span>team</h1>
+      <p class="hero-tagline">Agents that call agents like tools</p>
+      <p class="hero-desc">
+        迷你多智能体框架。管理者把子智能体当作工具调用；
+        成员各自运行独立的 ReAct 循环；一切能力皆为插件。
       </p>
       <div class="hero-actions">
-        <a class="btn btn-primary" href="https://github.com/1parado/tiny-team" target="_blank" rel="noopener">View on GitHub</a>
-        <a class="btn btn-ghost" href="#quickstart">快速开始</a>
+        <a class="btn btn-primary" href="https://github.com/1parado/tiny-team" target="_blank" rel="noopener">在 GitHub 查看</a>
+        <a class="btn btn-secondary" href="#start">快速开始</a>
       </div>
     </header>
 
-    <section id="features">
-      <h2>核心设计</h2>
-      <p class="section-desc">小而完整：Agent-as-Tool、插件目录、双协议与轨迹可视化。</p>
-      <div class="grid grid-3">
-        <div class="card">
-          <div class="icon blue">↗</div>
+    <section id="flow">
+      <div class="section-label">Architecture</div>
+      <h2>调用流程</h2>
+      <p class="section-lead">Manager 调度成员，成员使用插件，模型还可在运行时扩展工具目录。</p>
+      <div class="flow-board">
+        <div class="flow-diagram">
+          <div class="flow-row">
+            <div class="node manager">
+              <div class="node-title">Manager</div>
+              <div class="node-sub">协调 · 派发 task</div>
+            </div>
+          </div>
+          <div class="v-line"></div>
+          <div class="flow-label">Agent as Tool</div>
+          <div class="flow-row">
+            <div class="node agent">
+              <div class="node-title">Researcher</div>
+              <div class="node-sub">独立记忆 · ReAct</div>
+            </div>
+            <div class="h-line"></div>
+            <div class="node agent">
+              <div class="node-title">Coder</div>
+              <div class="node-sub">独立记忆 · ReAct</div>
+            </div>
+            <div class="h-line"></div>
+            <div class="node agent">
+              <div class="node-title">…</div>
+              <div class="node-sub">可扩展成员</div>
+            </div>
+          </div>
+          <div class="v-line" style="background: linear-gradient(180deg, rgba(175, 82, 222, 0.35), rgba(52, 199, 89, 0.35));"></div>
+          <div class="flow-label">Plugins</div>
+          <div class="tools-row">
+            <div class="node tool"><div class="node-title">read</div></div>
+            <div class="node tool"><div class="node-title">write</div></div>
+            <div class="node tool"><div class="node-title">shell</div></div>
+            <div class="node tool"><div class="node-title">search</div></div>
+            <div class="node tool"><div class="node-title">list_dir</div></div>
+            <div class="node meta"><div class="node-title">create_tool</div></div>
+          </div>
+        </div>
+        <p class="flow-caption">
+          子智能体对 Manager 表现为单参数 <code>task</code> 的工具；
+          插件统一注册在 ToolRegistry，可由 <code>create_tool</code> 动态增长。
+        </p>
+      </div>
+    </section>
+
+    <section id="principles">
+      <div class="section-label">Design</div>
+      <h2>设计原理</h2>
+      <p class="section-lead">用尽量少的抽象覆盖多智能体协作与可扩展工具。</p>
+      <div class="principles">
+        <article class="principle">
+          <div class="principle-num">01</div>
           <h3>Agent as Tool</h3>
-          <p>子智能体对 Manager 表现为普通函数（单参数 task），各自独立记忆与 ReAct 循环。</p>
-        </div>
-        <div class="card">
-          <div class="icon purple">◈</div>
-          <h3>一切即插件</h3>
-          <p>ToolRegistry 统一管理能力。内置工具与运行时 create_tool 注册的动态工具一视同仁。</p>
-        </div>
-        <div class="card">
-          <div class="icon green">▣</div>
-          <h3>沙箱工作区</h3>
-          <p>read / write / shell / search 限制在 workspace 内，路径逃逸被拒绝，命令带超时。</p>
-        </div>
+          <p>
+            子智能体实现与普通工具相同的接口。对 Manager 而言，委派任务就是一次函数调用；
+            对成员而言，仍是完整的多步 ReAct 循环与独立记忆。
+          </p>
+        </article>
+        <article class="principle">
+          <div class="principle-num">02</div>
+          <h3>Everything is a Plugin</h3>
+          <p>
+            ToolRegistry 是唯一的能力目录。内置插件、动态工具、乃至未来的扩展都以同一接口注册与发现，
+            没有第二套「特殊工具」通道。
+          </p>
+        </article>
+        <article class="principle">
+          <div class="principle-num">03</div>
+          <h3>Runtime Authorship</h3>
+          <p>
+            元插件 create_tool 允许模型用 shell 模板为自己编写新工具，注册后立即可用。
+            目录可增长，而不是写死在启动配置里。
+          </p>
+        </article>
+        <article class="principle">
+          <div class="principle-num">04</div>
+          <h3>Sandboxed Workspace</h3>
+          <p>
+            文件与 shell 操作被限制在 workspace 内：路径逃逸被拒绝，命令带超时与精简环境变量，
+            降低误操作与失控风险。
+          </p>
+        </article>
       </div>
     </section>
 
     <section>
-      <h2>协作关系</h2>
-      <p class="section-desc">Manager 调度成员；成员调用插件；模型还可扩展插件目录。</p>
-      <div class="flow">
-        <div class="flow-node manager">Manager</div>
-        <span class="flow-arrow">→</span>
-        <div class="flow-node agent">Researcher</div>
-        <span class="flow-arrow">→</span>
-        <div class="flow-node tool">search / read</div>
-        <span class="flow-arrow">·</span>
-        <div class="flow-node agent">Coder</div>
-        <span class="flow-arrow">→</span>
-        <div class="flow-node tool">shell / write</div>
-        <span class="flow-arrow">·</span>
-        <div class="flow-node tool">create_tool</div>
-      </div>
-    </section>
-
-    <section id="plugins">
+      <div class="section-label">Capabilities</div>
       <h2>内置插件</h2>
-      <p class="section-desc">开箱即用的底层能力；create_tool 让模型继续扩展。</p>
-      <div class="plugin-list">
-        <div class="plugin"><code>read</code><span>读取工作区内文本文件</span></div>
-        <div class="plugin"><code>write</code><span>写入 / 创建文本文件</span></div>
-        <div class="plugin"><code>list_dir</code><span>列出目录内容</span></div>
-        <div class="plugin"><code>shell</code><span>在工作区执行 shell（30s 超时）</span></div>
-        <div class="plugin"><code>search</code><span>递归文本搜索</span></div>
-        <div class="plugin"><code>calculator</code><span>简单四则运算</span></div>
-        <div class="plugin meta"><code>create_tool</code><span>元插件：用 shell 模板注册新工具，立即调用</span></div>
-        <div class="plugin"><code>final_answer</code><span>结束 ReAct 循环并返回答案</span></div>
+      <p class="section-lead">开箱即用的底层能力。</p>
+      <div class="plugin-grid">
+        <div class="plugin-chip"><code>read</code><span>读文件</span></div>
+        <div class="plugin-chip"><code>write</code><span>写文件</span></div>
+        <div class="plugin-chip"><code>list_dir</code><span>列目录</span></div>
+        <div class="plugin-chip"><code>shell</code><span>执行命令</span></div>
+        <div class="plugin-chip"><code>search</code><span>文本搜索</span></div>
+        <div class="plugin-chip"><code>calculator</code><span>四则运算</span></div>
+        <div class="plugin-chip highlight"><code>create_tool</code><span>运行时造工具</span></div>
+        <div class="plugin-chip"><code>final_answer</code><span>结束循环</span></div>
       </div>
     </section>
 
-    <section id="quickstart">
+    <section id="start">
+      <div class="section-label">Get started</div>
       <h2>快速开始</h2>
-      <p class="section-desc">Go 1.22+，配置 API 后一条命令即可跑起来。</p>
-      <div class="code-block">
-        <div class="code-header">
-          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-          <span style="margin-left:8px">terminal</span>
+      <p class="section-lead">Go 1.22+，配置 API 后一条命令即可运行。</p>
+      <div class="code-card">
+        <div class="code-bar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span>terminal</span>
         </div>
-        <pre><span class="c"># 克隆并配置</span>
+        <pre><span class="c"># 克隆与配置</span>
 git clone https://github.com/1parado/tiny-team.git
 cd tiny-team
 cp .env.example .env
-<span class="c"># 编辑 .env：PROTOCOL / BASE_URL / API_KEY / MODEL</span>
 
 <span class="c"># 运行</span>
 go run . -task <span class="s">"在 workspace 写 hello.txt 并读回来"</span>
 
-<span class="c"># 可选：轨迹 UI、自定义沙箱目录</span>
-go run . -web :8765 -workspace ./myws -task <span class="s">"..."</span>
-
-go test ./... -count=1</pre>
-      </div>
-    </section>
-
-    <section>
-      <h2>create_tool 示例</h2>
-      <p class="section-desc">模型在对话中注册新工具，后续步骤即可直接调用。</p>
-      <div class="code-block">
-        <div class="code-header">
-          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-          <span style="margin-left:8px">create_tool arguments</span>
-        </div>
-        <pre>{
-  <span class="k">"name"</span>: <span class="s">"count_lines"</span>,
-  <span class="k">"description"</span>: <span class="s">"Count lines in a file"</span>,
-  <span class="k">"parameters"</span>: {
-    <span class="k">"type"</span>: <span class="s">"object"</span>,
-    <span class="k">"properties"</span>: { <span class="k">"path"</span>: { <span class="k">"type"</span>: <span class="s">"string"</span> } },
-    <span class="k">"required"</span>: [<span class="s">"path"</span>]
-  },
-  <span class="k">"command"</span>: <span class="s">"wc -l {{path}}"</span>
-}</pre>
+<span class="c"># 可选：轨迹 UI · 自定义沙箱</span>
+go run . -web :8765 -workspace ./myws</pre>
       </div>
     </section>
 
     <footer>
+      <div class="footer-name">tiny<span>-team</span></div>
+      <p>Agents that call agents like tools · Apache-2.0</p>
       <div class="footer-links">
-        <a href="https://github.com/1parado/tiny-team" target="_blank" rel="noopener">Repository</a>
-        <a href="https://github.com/1parado/tiny-team/blob/main/LICENSE" target="_blank" rel="noopener">Apache-2.0</a>
-        <a href="https://github.com/huggingface/smolagents" target="_blank" rel="noopener">Inspired by smolagents</a>
+        <a href="https://github.com/1parado/tiny-team" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/1parado/tiny-team/blob/main/LICENSE" target="_blank" rel="noopener">License</a>
+        <a href="https://github.com/huggingface/smolagents" target="_blank" rel="noopener">smolagents</a>
       </div>
-      <p>tiny-team · built with Go · agents that call agents like tools</p>
     </footer>
   </div>
 </body>
