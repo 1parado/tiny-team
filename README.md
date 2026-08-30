@@ -25,8 +25,6 @@ Go 编写的迷你多智能体框架：管理者将子智能体当作工具调�
 
 **https://1parado.github.io/tiny-team/**
 
-> 若链接 404，请到仓库 Settings → Pages，Source 选 `main` / `/docs` 并保存。
-
 ## 实时轨迹 Web UI
 
 使用 `-web :8765` 启动后，浏览器可查看运行中的 ReAct 时间线（委派、工具调用、token 与耗时）：
