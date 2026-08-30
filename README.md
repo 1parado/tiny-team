@@ -1,18 +1,44 @@
-# tiny-multiagent-go
+# tiny-team
 
 <p align="center">
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg"></a>
     <a href="https://go.dev"><img alt="Go" src="https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?logo=go&logoColor=white"></a>
     <a href="https://github.com/huggingface/smolagents"><img alt="inspired by smolagents" src="https://img.shields.io/badge/inspired%20by-smolagents-FFD21E.svg"></a>
+    <a href="https://1parado.github.io/tiny-team/"><img alt="Docs" src="https://img.shields.io/badge/docs-GitHub%20Pages-0071e3.svg"></a>
 </p>
 
 <h3 align="center">
     Agents that call agents like tools — everything is a plugin
 </h3>
 
+<p align="center">
+  <a href="https://1parado.github.io/tiny-team/"><b>项目介绍页 →</b></a>
+</p>
+
 Go 编写的迷你多智能体框架：管理者将子智能体当作工具调用，各成员独立运行 ReAct 循环。
 
 **插件化工具系统**：内置 `read` / `write` / `list_dir` / `shell` / `search` / `calculator`，并提供元插件 `create_tool`，让模型在运行时为自己编写新的底层工具。
+
+## 项目主页
+
+介绍页（架构流程图 · 设计原理 · 快速开始）：
+
+**https://1parado.github.io/tiny-team/**
+
+> 若链接 404，请到仓库 Settings → Pages，Source 选 `main` / `/docs` 并保存。
+
+## 实时轨迹 Web UI
+
+使用 `-web :8765` 启动后，浏览器可查看运行中的 ReAct 时间线（委派、工具调用、token 与耗时）：
+
+```bash
+go run . -web :8765 -task "在 workspace 写 hello.txt 并读回来"
+# 打开 http://localhost:8765
+```
+
+<p align="center">
+  <img src="docs/trace-ui.svg" alt="运行轨迹 Web UI 预览" width="640" />
+</p>
 
 ## 核心特性
 
@@ -74,5 +100,6 @@ go test ./... -count=1
 
 ## 参考
 
+- [项目介绍页 (GitHub Pages)](https://1parado.github.io/tiny-team/)
 - [smolagents](https://github.com/huggingface/smolagents)
 - [tiktoken-go](https://github.com/pkoukk/tiktoken-go)

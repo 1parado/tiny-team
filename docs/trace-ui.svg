@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="1120" viewBox="0 0 880 1120" role="img" aria-label="运行轨迹 Web UI 预览">
+  <rect width="880" height="1120" fill="#F2F2F7"/>
+  <rect width="880" height="64" fill="#F7F7FA"/>
+  <line x1="0" y1="64" x2="880" y2="64" stroke="#DCDCE0"/>
+  <text x="40" y="42" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="26" font-weight="800" fill="#1C1C1E">运行轨迹</text>
+  <rect x="640" y="18" width="200" height="28" rx="14" fill="#DCF5E3"/>
+  <text x="740" y="37" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="12" font-weight="600" fill="#248A3D">✓ 已完成 · 10 个事件</text>
+
+  <rect x="40" y="84" width="800" height="72" rx="16" fill="#fff"/>
+  <rect x="54" y="98" width="28" height="28" rx="8" fill="#E5F1FF"/>
+  <text x="68" y="117" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="14" font-weight="700" fill="#007AFF">M</text>
+  <text x="94" y="110" font-family="-apple-system,sans-serif" font-size="15" font-weight="600" fill="#1C1C1E">任务</text>
+  <text x="94" y="134" font-family="-apple-system,sans-serif" font-size="14" fill="#1C1C1E">在 workspace 写 hello.txt 并读回来</text>
+
+  <text x="48" y="180" font-family="-apple-system,sans-serif" font-size="13" font-weight="600" fill="#8E8E93">Step 1</text>
+
+  <rect x="40" y="192" width="800" height="150" rx="16" fill="#fff"/>
+  <rect x="54" y="206" width="28" height="28" rx="8" fill="#E5F1FF"/>
+  <text x="68" y="225" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="14" font-weight="700" fill="#007AFF">M</text>
+  <text x="94" y="218" font-family="-apple-system,sans-serif" font-size="15" font-weight="600" fill="#1C1C1E">思考</text>
+  <text x="800" y="218" text-anchor="end" font-family="-apple-system,sans-serif" font-size="12" fill="#8E8E93">160 tok</text>
+  <rect x="54" y="244" width="772" height="28" rx="8" fill="#F5F5F7"/>
+  <text x="66" y="263" font-family="-apple-system,sans-serif" font-size="14" fill="#1C1C1E">先写入文件，再读取确认。</text>
+  <text x="54" y="290" font-family="-apple-system,sans-serif" font-size="13" font-weight="500" fill="#007AFF">调用 write</text>
+  <rect x="54" y="300" width="772" height="32" rx="8" fill="#F5F5F7"/>
+  <text x="66" y="321" font-family="ui-monospace,SF Mono,monospace" font-size="12" fill="#505055">{"path":"hello.txt","content":"hello from tiny-team"}</text>
+
+  <rect x="40" y="356" width="800" height="88" rx="16" fill="#fff"/>
+  <rect x="54" y="370" width="28" height="28" rx="8" fill="#EFEFF0"/>
+  <text x="68" y="389" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="14" font-weight="700" fill="#636366">W</text>
+  <text x="94" y="382" font-family="-apple-system,sans-serif" font-size="15" font-weight="600" fill="#1C1C1E">write</text>
+  <text x="800" y="382" text-anchor="end" font-family="-apple-system,sans-serif" font-size="12" fill="#8E8E93">4 ms</text>
+  <text x="54" y="418" font-family="-apple-system,sans-serif" font-size="13" font-weight="500" fill="#007AFF">观察</text>
+  <rect x="54" y="426" width="772" height="26" rx="8" fill="#F5F5F7"/>
+  <text x="66" y="444" font-family="ui-monospace,monospace" font-size="12" fill="#505055">wrote 21 bytes to hello.txt</text>
+
+  <text x="48" y="470" font-family="-apple-system,sans-serif" font-size="13" font-weight="600" fill="#8E8E93">Step 2</text>
+
+  <rect x="40" y="482" width="800" height="120" rx="16" fill="#fff"/>
+  <rect x="54" y="496" width="28" height="28" rx="8" fill="#E5F1FF"/>
+  <text x="68" y="515" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="14" font-weight="700" fill="#007AFF">M</text>
+  <text x="94" y="508" font-family="-apple-system,sans-serif" font-size="15" font-weight="600" fill="#1C1C1E">思考</text>
+  <text x="800" y="508" text-anchor="end" font-family="-apple-system,sans-serif" font-size="12" fill="#8E8E93">175 tok</text>
+  <rect x="54" y="534" width="772" height="26" rx="8" fill="#F5F5F7"/>
+  <text x="66" y="552" font-family="-apple-system,sans-serif" font-size="14" fill="#1C1C1E">读取 hello.txt</text>
+  <text x="54" y="578" font-family="-apple-system,sans-serif" font-size="13" font-weight="500" fill="#007AFF">调用 read</text>
+  <rect x="54" y="586" width="772" height="26" rx="8" fill="#F5F5F7"/>
+  <text x="66" y="604" font-family="ui-monospace,monospace" font-size="12" fill="#505055">{"path":"hello.txt"}</text>
+
+  <rect x="40" y="618" width="800" height="88" rx="16" fill="#fff"/>
+  <rect x="54" y="632" width="28" height="28" rx="8" fill="#EFEFF0"/>
+  <text x="68" y="651" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="14" font-weight="700" fill="#636366">R</text>
+  <text x="94" y="644" font-family="-apple-system,sans-serif" font-size="15" font-weight="600" fill="#1C1C1E">read</text>
+  <text x="800" y="644" text-anchor="end" font-family="-apple-system,sans-serif" font-size="12" fill="#8E8E93">2 ms</text>
+  <text x="54" y="680" font-family="-apple-system,sans-serif" font-size="13" font-weight="500" fill="#007AFF">观察</text>
+  <rect x="54" y="688" width="772" height="26" rx="8" fill="#F5F5F7"/>
+  <text x="66" y="706" font-family="ui-monospace,monospace" font-size="12" fill="#505055">hello from tiny-team</text>
+
+  <text x="48" y="734" font-family="-apple-system,sans-serif" font-size="13" font-weight="600" fill="#8E8E93">Step 3</text>
+
+  <rect x="40" y="746" width="800" height="72" rx="16" fill="#fff"/>
+  <rect x="54" y="760" width="28" height="28" rx="8" fill="#E5F1FF"/>
+  <text x="68" y="779" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="14" font-weight="700" fill="#007AFF">M</text>
+  <text x="94" y="772" font-family="-apple-system,sans-serif" font-size="15" font-weight="600" fill="#1C1C1E">最终答案</text>
+  <text x="94" y="798" font-family="-apple-system,sans-serif" font-size="14" fill="#1C1C1E">已写入并读回 hello.txt：hello from tiny-team</text>
+
+  <text x="440" y="860" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="12" fill="#8E8E93">go run . -web :8765  ·  实时轨迹预览</text>
+</svg>
