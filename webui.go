@@ -33,7 +33,7 @@ const traceHTML = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#F2F2F7">
-<title>运行轨迹 · tiny-multiagent-go</title>
+<title>运行轨迹 · tiny-team</title>
 <style>
 :root{
   color-scheme:light;
@@ -146,7 +146,7 @@ function render(ev){
         +'<details open><summary>报告</summary><pre>'+esc(ev.text)+'</pre></details></div>';
     }
     case 'final':
-      return '<div class="card">'+agentHead(ev,'✓','最终答案')+'<p class="text">'+esc(ev.text)+'</p></div>';
+      return '<div class="card">'+agentHead(ev,'最终答案')+'<p class="text">'+esc(ev.text)+'</p></div>';
     case 'error':
       return '<div class="card"><div class="trow">'
         +'<span class="mono" style="background:rgba(255,59,48,.14);color:var(--red)">!</span>'
