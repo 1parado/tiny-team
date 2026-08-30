@@ -1,30 +1,3 @@
-// Command tiny-multiagent-go is a miniature multi-agent framework inspired by
-// Hugging Face smolagents: a manager agent delegates tasks to specialist
-// agents, which are exposed to the manager as ordinary tools ("agent as
-// tool"), while each runs its own ReAct loop with its own memory.
-//
-// Tools are plugins. The default catalogue includes read, write, list_dir,
-// shell, search, calculator, and the meta-plugin create_tool that lets the
-// model author new shell-backed tools at runtime.
-//
-// Configuration is explicit — there are no provider defaults. Copy
-// .env.example to ".env" and fill in:
-//
-//	PROTOCOL   "openai" (any OpenAI-compatible server) or "anthropic"
-//	           (default: "openai")
-//	BASE_URL   API base URL, e.g. "https://api.openai.com/v1",
-//	           "https://api.anthropic.com/v1", or your own server
-//	           (default: the official URL for the chosen protocol)
-//	API_KEY    API key (sent as Bearer token for openai, x-api-key for
-//	           anthropic)
-//	MODEL      model name, e.g. "gpt-4o-mini", "claude-sonnet-4-5"
-//	           (required)
-//
-// The file path defaults to ".env" in the working directory and can be
-// overridden: go run . -env path/to/config.env
-//
-// Workspace for file/shell tools defaults to "./workspace" and can be
-// overridden with -workspace.
 package main
 
 import (
@@ -38,16 +11,29 @@ import (
 	"strings"
 )
 
+// tiny-team — a minimal multi-agent framework in Go.
+//
+// Agents call agents like tools; everything is a plugin.
+// Built-in plugins: read, write, list_dir, shell, search, calculator, create_tool.
+//
+// Usage:
+//
+//	cp .env.example .env   # fill API_KEY, MODEL, ...
+//	go run . -task "write hello.txt and read it back"
+//	go run . -web :8765 -workspace ./ws -task "..."
+//
+// Workspace for file/shell tools defaults to "./workspace" and can be
+// overridden with -workspace.
 func main() {
-	envPath := flag.String("env", ".env", "path to the env config file")
-	webAddr := flag.String("web", ":8765", "address for the live trace web UI (empty disables it)")
-	workspace := flag.String("workspace", "./workspace", "sandbox directory for read/write/shell/search plugins")
-	task := flag.String("task", "", "task for the agent (default: interactive prompt or built-in sample)")
+	envFile := flag.String("env", ".env", "path to env file")
+	task := flag.String("task", "", "task for the agent")
+	workspace := flag.String("workspace", "./workspace", "sandbox root for file/shell plugins")
+	webAddr := flag.String("web", "", "if set (e.g. :8765), serve live trace UI")
 	flag.Parse()
 
-	values, err := loadDotEnv(*envPath)
+	values, err := loadEnvFile(*envFile)
 	if err != nil {
-		log.Fatalf("load env file: %v (copy .env.example to .env and fill in your values)", err)
+		log.Fatalf("load env %s: %v (copy .env.example and fill API_KEY / MODEL)", *envFile, err)
 	}
 	model, err := modelFromFile(values)
 	if err != nil {
@@ -67,6 +53,7 @@ func main() {
 		Description: "A capable assistant with file, shell, search plugins and the ability to author new tools.",
 		Model:       model,
 		Registry:    registry,
+		Workspace:   *workspace,
 		MaxSteps:    15,
 		Verbose:     true,
 	}
