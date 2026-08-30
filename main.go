@@ -31,7 +31,7 @@ func main() {
 	webAddr := flag.String("web", "", "if set (e.g. :8765), serve live trace UI")
 	flag.Parse()
 
-	values, err := loadEnvFile(*envFile)
+	values, err := loadDotEnv(*envFile)
 	if err != nil {
 		log.Fatalf("load env %s: %v (copy .env.example and fill API_KEY / MODEL)", *envFile, err)
 	}
