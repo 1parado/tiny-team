@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+// Workspace helpers — all file/shell plugins are confined to a root dir.
+
 // resolvePath joins workspace and a user-supplied relative path, rejecting
 // any attempt to escape the workspace via ".." or absolute paths.
 func resolvePath(workspace, userPath string) (string, error) {
@@ -33,6 +35,10 @@ func resolvePath(workspace, userPath string) (string, error) {
 	}
 	return full, nil
 }
+
+// ---------------------------------------------------------------------------
+// read
+// ---------------------------------------------------------------------------
 
 type readTool struct{ workspace string }
 
@@ -67,12 +73,17 @@ func (t *readTool) Execute(_ context.Context, argsJSON string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// Cap very large files so we don't blow the context window.
 	const maxBytes = 64 * 1024
 	if len(data) > maxBytes {
 		return string(data[:maxBytes]) + fmt.Sprintf("\n\n... [truncated, file is %d bytes]", len(data)), nil
 	}
 	return string(data), nil
 }
+
+// ---------------------------------------------------------------------------
+// write
+// ---------------------------------------------------------------------------
 
 type writeTool struct{ workspace string }
 
@@ -113,6 +124,10 @@ func (t *writeTool) Execute(_ context.Context, argsJSON string) (string, error) 
 	}
 	return fmt.Sprintf("wrote %d bytes to %s", len(args.Content), args.Path), nil
 }
+
+// ---------------------------------------------------------------------------
+// list_dir
+// ---------------------------------------------------------------------------
 
 type listDirTool struct{ workspace string }
 
@@ -169,6 +184,26 @@ func (t *listDirTool) Execute(_ context.Context, argsJSON string) (string, error
 	return b.String(), nil
 }
 
+// shellQuote returns a POSIX single-quoted string safe for embedding in bash -c.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// validToolName restricts runtime-authored tool names to [A-Za-z0-9_].
+func validToolName(name string) bool {
+	if name == "" || len(name) > 64 {
+		return false
+	}
+	for _, r := range name {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_') {
+			return false
+		}
+	}
+	return true
+}
+
+// shell — run a shell command inside the workspace
+
 type shellTool struct {
 	workspace string
 	timeout   time.Duration
@@ -181,11 +216,15 @@ func NewShellTool(workspace string) Tool {
 func (t *shellTool) Spec() FunctionSpec {
 	return FunctionSpec{
 		Name: "shell",
-		Description: "Execute a shell command inside the workspace directory. Stdout/stderr returned. 30s timeout.",
+		Description: "Execute a shell command inside the workspace directory. " +
+			"Stdout and stderr are returned. Commands time out after 30s.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"command": map[string]any{"type": "string", "description": "The shell command to run."},
+				"command": map[string]any{
+					"type":        "string",
+					"description": "The shell command to run (e.g. \"ls -la\", \"python3 script.py\").",
+				},
 			},
 			"required": []string{"command"},
 		},
@@ -203,6 +242,7 @@ func (t *shellTool) Execute(ctx context.Context, argsJSON string) (string, error
 	if cmdStr == "" {
 		return "", fmt.Errorf("empty command")
 	}
+
 	ws := t.workspace
 	if ws == "" {
 		ws = "."
@@ -211,19 +251,29 @@ func (t *shellTool) Execute(ctx context.Context, argsJSON string) (string, error
 	if err != nil {
 		return "", err
 	}
+
 	timeout := t.timeout
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+
 	cmd := exec.CommandContext(ctx, "bash", "-c", cmdStr)
 	cmd.Dir = absWS
-	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + absWS, "TERM=dumb", "LANG=C.UTF-8"}
+	// Minimal safe environment.
+	cmd.Env = []string{
+		"PATH=" + os.Getenv("PATH"),
+		"HOME=" + absWS,
+		"TERM=dumb",
+		"LANG=C.UTF-8",
+	}
+
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err = cmd.Run()
+
 	var b strings.Builder
 	if stdout.Len() > 0 {
 		b.WriteString(stdout.String())
@@ -251,6 +301,10 @@ func (t *shellTool) Execute(ctx context.Context, argsJSON string) (string, error
 	}
 	return out, nil
 }
+
+// ---------------------------------------------------------------------------
+// search
+// ---------------------------------------------------------------------------
 
 type searchTool struct{ workspace string }
 
@@ -336,6 +390,10 @@ func (t *searchTool) Execute(_ context.Context, argsJSON string) (string, error)
 	return out, nil
 }
 
+// ---------------------------------------------------------------------------
+// calculator
+// ---------------------------------------------------------------------------
+
 type calculatorTool struct{}
 
 func NewCalculatorTool() Tool { return calculatorTool{} }
@@ -384,6 +442,11 @@ func (calculatorTool) Execute(_ context.Context, argsJSON string) (string, error
 	return fmt.Sprintf("%g", out), nil
 }
 
+// ---------------------------------------------------------------------------
+// create_tool — meta-plugin: model authors a new shell-backed tool at runtime
+// ---------------------------------------------------------------------------
+
+// createTool lets the agent register a new shell-backed tool into the registry.
 type createTool struct {
 	registry  *ToolRegistry
 	workspace string
@@ -396,14 +459,29 @@ func NewCreateTool(registry *ToolRegistry, workspace string) Tool {
 func (t *createTool) Spec() FunctionSpec {
 	return FunctionSpec{
 		Name: "create_tool",
-		Description: "Author a new tool at runtime and register it. Shell command template with {{arg}} placeholders.",
+		Description: "Author a new tool at runtime and register it into the plugin catalogue. " +
+			"The tool is backed by a shell command template: occurrences of " +
+			"{{param}} are replaced with argument values (shell-quoted).",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"name":        map[string]any{"type": "string", "description": "Unique tool name (snake_case)."},
-				"description": map[string]any{"type": "string", "description": "What the tool does."},
-				"parameters":   map[string]any{"type": "object", "description": "JSON Schema for arguments."},
-				"command":     map[string]any{"type": "string", "description": "Shell template with {{param}} placeholders."},
+				"name": map[string]any{
+					"type":        "string",
+					"description": "Unique tool name ([A-Za-z0-9_], max 64).",
+				},
+				"description": map[string]any{
+					"type":        "string",
+					"description": "What the tool does.",
+				},
+				"parameters": map[string]any{
+					"type":        "object",
+					"description": "JSON Schema object describing the tool arguments.",
+				},
+				"command": map[string]any{
+					"type": "string",
+					"description": "Shell command template. Use {{param}} placeholders that match property names. " +
+						"Example: \"wc -l {{path}}\"",
+				},
 			},
 			"required": []string{"name", "description", "parameters", "command"},
 		},
@@ -421,8 +499,8 @@ func (t *createTool) Execute(_ context.Context, argsJSON string) (string, error)
 		return "", fmt.Errorf("parse args: %w", err)
 	}
 	name := strings.TrimSpace(args.Name)
-	if name == "" || name == finalAnswerName || name == "create_tool" {
-		return "", fmt.Errorf("invalid or reserved tool name %q", args.Name)
+	if name == finalAnswerName || name == "create_tool" || !validToolName(name) {
+		return "", fmt.Errorf("invalid or reserved tool name %q (use [A-Za-z0-9_]{1,64})", args.Name)
 	}
 	if strings.TrimSpace(args.Command) == "" {
 		return "", fmt.Errorf("command template is empty")
@@ -430,35 +508,55 @@ func (t *createTool) Execute(_ context.Context, argsJSON string) (string, error)
 	if len(args.Parameters) == 0 {
 		args.Parameters = json.RawMessage(`{"type":"object","properties":{}}`)
 	}
+	// Validate that parameters is valid JSON object.
 	var params any
 	if err := json.Unmarshal(args.Parameters, &params); err != nil {
 		return "", fmt.Errorf("parameters must be a JSON object: %w", err)
 	}
-	dyn := &dynamicShellTool{name: name, description: args.Description, parameters: params, command: args.Command, workspace: t.workspace}
+
+	dyn := &dynamicShellTool{
+		name:        name,
+		description: args.Description,
+		parameters:   params,
+		command:     args.Command,
+		workspace:   t.workspace,
+	}
 	if err := t.registry.Register(dyn); err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("tool %q registered — you can call it now", name), nil
 }
 
+// dynamicShellTool is a tool authored at runtime via create_tool.
 type dynamicShellTool struct {
-	name, description, command, workspace string
-	parameters                           any
+	name        string
+	description string
+	parameters   any
+	command     string
+	workspace   string
 }
 
 func (t *dynamicShellTool) Spec() FunctionSpec {
-	return FunctionSpec{Name: t.name, Description: t.description, Parameters: t.parameters}
+	return FunctionSpec{
+		Name:        t.name,
+		Description: t.description,
+		Parameters:  t.parameters,
+	}
 }
 
 func (t *dynamicShellTool) Execute(ctx context.Context, argsJSON string) (string, error) {
+	// Expand {{key}} placeholders from the JSON args object.
 	var argMap map[string]any
 	if err := json.Unmarshal([]byte(argsJSON), &argMap); err != nil {
 		return "", fmt.Errorf("parse args: %w", err)
 	}
 	cmd := t.command
 	for k, v := range argMap {
-		cmd = strings.ReplaceAll(cmd, "{{" + k + "}}", fmt.Sprint(v))
+		placeholder := "{{" + k + "}}"
+		// Quote values so user-controlled args cannot break out of the template.
+		cmd = strings.ReplaceAll(cmd, placeholder, shellQuote(fmt.Sprint(v)))
 	}
+	// Re-use shell tool execution for the expanded command.
 	sh := &shellTool{workspace: t.workspace, timeout: 30 * time.Second}
 	return sh.Execute(ctx, mustMarshalCompact(map[string]string{"command": cmd}))
 }
