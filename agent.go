@@ -60,14 +60,16 @@ type Agent struct {
 	Description   string
 	Model         Model
 	Registry      *ToolRegistry // plugin catalogue (read/write/shell/search/...)
+	Workspace     string        // root for file/shell plugins; used when isolating sub-agents
 	ManagedAgents []*Agent
 	MaxSteps      int
 	Verbose       bool
 	// Tracer optionally records every step of the run for the live web UI.
 	Tracer *Tracer
 
-	memory    []ChatMessage
-	lastUsage TokenUsage
+	memory     []ChatMessage
+	lastUsage  TokenUsage
+	catalogSig string // last tool-catalogue signature used in system prompt
 }
 
 // Spec makes a managed agent look like a tool to its manager, mirroring how
@@ -98,6 +100,11 @@ func (a *Agent) Execute(ctx context.Context, argsJSON string) (string, error) {
 	if err := json.Unmarshal([]byte(argsJSON), &args); err != nil {
 		return "", err
 	}
+	// Isolate the sub-agent's plugin catalogue so create_tool registrations
+	// do not leak across sibling managed agents that shared the manager registry.
+	if a.Registry != nil && a.Workspace != "" {
+		a.Registry = a.Registry.CloneIsolated(a.Workspace)
+	}
 	res, err := a.Run(ctx, fmt.Sprintf(managedTaskTemplate, a.Name, args.Task))
 	if err != nil {
 		return "", err
@@ -116,6 +123,7 @@ func (a *Agent) Run(ctx context.Context, task string) (RunResult, error) {
 		return RunResult{}, fmt.Errorf("agent %q: Model is nil", a.Name)
 	}
 	a.lastUsage = TokenUsage{}
+	a.catalogSig = a.catalogSignature()
 	a.memory = []ChatMessage{
 		{Role: "system", Content: a.systemPrompt()},
 		{Role: "user", Content: task},
@@ -148,6 +156,7 @@ func (a *Agent) Run(ctx context.Context, task string) (RunResult, error) {
 		a.memory = append(a.memory, reply)
 
 		// Refresh system prompt in memory if tools were added (create_tool).
+		// We only rewrite the first system message when the catalogue grew.
 		a.maybeRefreshSystemPrompt()
 
 		var final string
@@ -322,13 +331,27 @@ func (a *Agent) systemPrompt() string {
 	return b.String()
 }
 
-// maybeRefreshSystemPrompt rewrites the system message when the tool catalogue
-// may have grown (after create_tool), so the model sees newly registered tools.
+// catalogSignature is a stable fingerprint of the current tool catalogue.
+func (a *Agent) catalogSignature() string {
+	names := a.toolNames()
+	// toolNames already ends with managed agents; Names() is sorted.
+	return strings.Join(names, ",")
+}
+
+// maybeRefreshSystemPrompt rewrites the system message only when the tool
+// catalogue actually changed (e.g. after create_tool), avoiding a full rewrite
+// on every step.
 func (a *Agent) maybeRefreshSystemPrompt() {
+	sig := a.catalogSignature()
+	if sig == a.catalogSig {
+		return
+	}
+	a.catalogSig = sig
 	if len(a.memory) == 0 || a.memory[0].Role != "system" {
 		return
 	}
 	a.memory[0].Content = a.systemPrompt()
+	a.logf("tool catalogue changed; system prompt refreshed")
 }
 
 func mustMarshalCompact(v any) string {
