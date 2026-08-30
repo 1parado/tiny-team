@@ -1,7 +1,11 @@
-// Command tiny-multiagent-go is a miniature multi-agent demo inspired by
+// Command tiny-multiagent-go is a miniature multi-agent framework inspired by
 // Hugging Face smolagents: a manager agent delegates tasks to specialist
 // agents, which are exposed to the manager as ordinary tools ("agent as
 // tool"), while each runs its own ReAct loop with its own memory.
+//
+// Tools are plugins. The default catalogue includes read, write, list_dir,
+// shell, search, calculator, and the meta-plugin create_tool that lets the
+// model author new shell-backed tools at runtime.
 //
 // Configuration is explicit — there are no provider defaults. Copy
 // .env.example to ".env" and fill in:
@@ -18,21 +22,27 @@
 //
 // The file path defaults to ".env" in the working directory and can be
 // overridden: go run . -env path/to/config.env
+//
+// Workspace for file/shell tools defaults to "./workspace" and can be
+// overridden with -workspace.
 package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"strings"
 )
 
 func main() {
 	envPath := flag.String("env", ".env", "path to the env config file")
 	webAddr := flag.String("web", ":8765", "address for the live trace web UI (empty disables it)")
+	workspace := flag.String("workspace", "./workspace", "sandbox directory for read/write/shell/search plugins")
+	task := flag.String("task", "", "task for the agent (default: interactive prompt or built-in sample)")
 	flag.Parse()
 
 	values, err := loadDotEnv(*envPath)
@@ -44,39 +54,26 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Two specialists; each is a full agent that only the manager can call.
-	researcher := &Agent{
-		Name:        "researcher",
-		Description: "Finds factual information using web search.",
-		Model:       model,
-		Tools:       []Tool{webSearchTool{}},
-		MaxSteps:    5,
-		Verbose:     true,
+	// Ensure workspace exists.
+	if err := os.MkdirAll(*workspace, 0o755); err != nil {
+		log.Fatalf("workspace: %v", err)
 	}
-	mathematician := &Agent{
-		Name:        "mathematician",
-		Description: "Performs precise arithmetic calculations.",
+
+	// Everything-is-a-plugin: default registry with read/write/shell/search/...
+	registry := DefaultRegistry(*workspace)
+
+	agent := &Agent{
+		Name:        "assistant",
+		Description: "A capable assistant with file, shell, search plugins and the ability to author new tools.",
 		Model:       model,
-		Tools:       []Tool{calculatorTool{}},
-		MaxSteps:    5,
+		Registry:    registry,
+		MaxSteps:    15,
 		Verbose:     true,
 	}
 
-	// The manager has no tools of its own — only team members.
-	manager := &Agent{
-		Name:          "manager",
-		Description:   "Coordinates team members to answer the user's question.",
-		Model:         model,
-		ManagedAgents: []*Agent{researcher, mathematician},
-		MaxSteps:      10,
-		Verbose:       true,
-	}
-
-	// All agents share one tracer so the web UI shows delegations nested.
 	tracer := NewTracer()
-	for _, ag := range []*Agent{manager, researcher, mathematician} {
-		ag.Tracer = tracer
-	}
+	agent.Tracer = tracer
+
 	if *webAddr != "" {
 		ln, err := net.Listen("tcp", *webAddr)
 		if err != nil {
@@ -88,9 +85,14 @@ func main() {
 		fmt.Printf("live trace web UI: http://localhost:%d\n", ln.Addr().(*net.TCPAddr).Port)
 	}
 
-	task := "The Eiffel Tower was built between 28 January 1887 and 31 March 1889. " +
-		"How many days did its construction last in total? Use your team members for facts and math."
-	res, err := manager.Run(context.Background(), task)
+	userTask := strings.TrimSpace(*task)
+	if userTask == "" {
+		userTask = "List the files in the workspace, then create a small hello.txt saying hello and read it back."
+		fmt.Println("No -task given; using sample task.")
+	}
+	fmt.Println("Task:", userTask)
+
+	res, err := agent.Run(context.Background(), userTask)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -99,10 +101,6 @@ func main() {
 	usage := res.Usage
 	fmt.Printf("\n=== Token usage ===\nmodel calls: %d | prompt: %d | completion: %d | total: %d\n",
 		usage.Calls, usage.PromptTokens, usage.CompletionTokens, usage.TotalTokens())
-	for _, member := range []*Agent{researcher, mathematician} {
-		memberUsage := member.LastUsage()
-		fmt.Printf("  %-14s calls: %d | total: %d\n", member.Name, memberUsage.Calls, memberUsage.TotalTokens())
-	}
 
 	if *webAddr != "" {
 		tracer.SetDone()
@@ -111,8 +109,7 @@ func main() {
 	}
 }
 
-// modelFromFile builds the model backend from the parsed env file; see the
-// package comment for the keys and their meaning.
+// modelFromFile builds the model backend from the parsed env file.
 func modelFromFile(cfg map[string]string) (Model, error) {
 	modelID := cfg["MODEL"]
 	if modelID == "" {
@@ -141,80 +138,4 @@ func modelFromFile(cfg map[string]string) (Model, error) {
 		APIKey:   cfg["API_KEY"],
 		ModelID:  modelID,
 	})
-}
-
-// calculatorTool is a real, deterministic tool.
-type calculatorTool struct{}
-
-func (calculatorTool) Spec() FunctionSpec {
-	return FunctionSpec{
-		Name:        "calculator",
-		Description: "Compute arithmetic on two numbers.",
-		Parameters: map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"a":  map[string]any{"type": "number", "description": "First operand."},
-				"b":  map[string]any{"type": "number", "description": "Second operand."},
-				"op": map[string]any{"type": "string", "description": "One of \"+\", \"-\", \"*\", \"/\"."},
-			},
-			"required": []string{"a", "b", "op"},
-		},
-	}
-}
-
-func (calculatorTool) Execute(_ context.Context, argsJSON string) (string, error) {
-	var args struct {
-		A  float64 `json:"a"`
-		B  float64 `json:"b"`
-		Op string  `json:"op"`
-	}
-	if err := json.Unmarshal([]byte(argsJSON), &args); err != nil {
-		return "", err
-	}
-	var out float64
-	switch args.Op {
-	case "+":
-		out = args.A + args.B
-	case "-":
-		out = args.A - args.B
-	case "*":
-		out = args.A * args.B
-	case "/":
-		if args.B == 0 {
-			return "", fmt.Errorf("division by zero")
-		}
-		out = args.A / args.B
-	default:
-		return "", fmt.Errorf("unsupported op %q", args.Op)
-	}
-	return fmt.Sprintf("%g", out), nil
-}
-
-// webSearchTool is a stub standing in for a real search backend; it always
-// returns the same canned fact so the demo works without any API key.
-type webSearchTool struct{}
-
-func (webSearchTool) Spec() FunctionSpec {
-	return FunctionSpec{
-		Name:        "web_search",
-		Description: "Search the web for factual information.",
-		Parameters: map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"query": map[string]any{"type": "string", "description": "The search query."},
-			},
-			"required": []string{"query"},
-		},
-	}
-}
-
-func (webSearchTool) Execute(_ context.Context, argsJSON string) (string, error) {
-	var args struct {
-		Query string `json:"query"`
-	}
-	if err := json.Unmarshal([]byte(argsJSON), &args); err != nil {
-		return "", err
-	}
-	return "STUB RESULT — no real search backend is configured. Canned fact: " +
-		"The Eiffel Tower was built from 28 January 1887 to 31 March 1889.", nil
 }
