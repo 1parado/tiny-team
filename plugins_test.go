@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -146,6 +147,58 @@ func TestDefaultRegistryHasCorePlugins(t *testing.T) {
 	for _, name := range []string{"read", "write", "list_dir", "shell", "search", "calculator", "create_tool"} {
 		if _, ok := reg.Get(name); !ok {
 			t.Errorf("missing plugin %q", name)
+		}
+	}
+}
+
+func TestShellQuote(t *testing.T) {
+	cases := map[string]string{
+		"hello":       "'hello'",
+		"x; rm -rf /": "'x; rm -rf /'",
+	}
+	cases["it's"] = "'" + strings.ReplaceAll("it's", "'", `'\''`) + "'"
+	for in, want := range cases {
+		if got := shellQuote(in); got != want {
+			t.Fatalf("shellQuote(%q)=%q want %q", in, got, want)
+		}
+	}
+}
+
+func TestCreateToolQuotesArgs(t *testing.T) {
+	dir := t.TempDir()
+	risky := "hello world.txt"
+	if err := os.WriteFile(filepath.Join(dir, risky), []byte("one\ntwo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	reg := DefaultRegistry(dir)
+	ct, ok := reg.Get("create_tool")
+	if !ok {
+		t.Fatal("create_tool missing")
+	}
+	args := `{"name":"count_lines","description":"count lines","parameters":{"type":"object","properties":{"path":{"type":"string"}},"required":["path"]},"command":"wc -l {{path}}"}`
+	if _, err := ct.Execute(context.Background(), args); err != nil {
+		t.Fatal(err)
+	}
+	tool, ok := reg.Get("count_lines")
+	if !ok {
+		t.Fatal("count_lines not registered")
+	}
+	out, err := tool.Execute(context.Background(), `{"path":"hello world.txt"}`)
+	if err != nil {
+		t.Fatalf("execute: %v (out=%q)", err, out)
+	}
+	if !strings.Contains(out, "2") && !strings.Contains(out, "hello") {
+		t.Fatalf("unexpected output: %q", out)
+	}
+}
+
+func TestCreateToolRejectsBadNames(t *testing.T) {
+	reg := DefaultRegistry(t.TempDir())
+	ct, _ := reg.Get("create_tool")
+	for _, name := range []string{"", "final_answer", "create_tool", "bad-name", "has space"} {
+		args := fmt.Sprintf(`{"name":%q,"description":"x","parameters":{},"command":"echo hi"}`, name)
+		if _, err := ct.Execute(context.Background(), args); err == nil {
+			t.Fatalf("expected error for name %q", name)
 		}
 	}
 }
