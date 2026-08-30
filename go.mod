@@ -1,4 +1,4 @@
-module tiny-multiagent-go
+module github.com/1parado/tiny-team
 
 go 1.22
 
