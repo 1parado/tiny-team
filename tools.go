@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"sync"
 )
 
@@ -109,6 +110,7 @@ func (r *ToolRegistry) Names() []string {
 	for n := range r.tools {
 		names = append(names, n)
 	}
+	sort.Strings(names)
 	return names
 }
 
@@ -121,6 +123,17 @@ func (r *ToolRegistry) Clone() *ToolRegistry {
 	for k, v := range r.tools {
 		c.tools[k] = v
 	}
+	return c
+}
+
+// CloneIsolated returns a shallow copy of the registry and rebinds create_tool
+// so runtime registrations mutate only the clone, not the parent catalogue.
+func (r *ToolRegistry) CloneIsolated(workspace string) *ToolRegistry {
+	c := r.Clone()
+	c.mu.Lock()
+	delete(c.tools, "create_tool")
+	c.mu.Unlock()
+	c.MustRegister(NewCreateTool(c, workspace))
 	return c
 }
 
