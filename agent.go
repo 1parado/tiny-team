@@ -131,6 +131,12 @@ func (a *Agent) Run(ctx context.Context, task string) (RunResult, error) {
 	a.trace(TraceEvent{Type: "run_start", Agent: a.Name, Text: task})
 
 	for step := 1; step <= a.MaxSteps; step++ {
+		select {
+		case <-ctx.Done():
+			a.trace(TraceEvent{Type: "error", Agent: a.Name, Text: "interrupted by user"})
+			return RunResult{Usage: a.lastUsage}, ctx.Err()
+		default:
+		}
 		a.logf("step %d", step)
 		a.trace(TraceEvent{Type: "step", Agent: a.Name, Step: step})
 
@@ -334,7 +340,6 @@ func (a *Agent) systemPrompt() string {
 // catalogSignature is a stable fingerprint of the current tool catalogue.
 func (a *Agent) catalogSignature() string {
 	names := a.toolNames()
-	// toolNames already ends with managed agents; Names() is sorted.
 	return strings.Join(names, ",")
 }
 
