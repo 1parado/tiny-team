@@ -11,44 +11,17 @@
     Agents that call agents like tools — everything is a plugin
 </h3>
 
-<p align="center">
-  <a href="https://1parado.github.io/tiny-team/"><b>项目介绍页 →</b></a>
-</p>
-
 Go 编写的迷你多智能体框架：管理者将子智能体当作工具调用，各成员独立运行 ReAct 循环。
 
-**插件化工具系统**：内置 `read` / `write` / `edit` / `list_dir` / `shell` / `search` / `calculator` / `doctor` / `log_evolution`，并提供元插件 `create_tool`，让模型在运行时为自己编写新的底层工具。
-
-## 项目主页
-
-介绍页（架构流程图 · 设计原理 · 快速开始）：
-
-**https://1parado.github.io/tiny-team/**
+**插件化工具系统**：内置 `read` / `write` / `edit` / `list_dir` / `shell` / `search` / `calculator` / `doctor` / `log_evolution`，并提供元插件 `create_tool`。
 
 ## 实时轨迹 Web UI
-
-使用 `-web :8765` 启动后，浏览器可查看运行中的 ReAct 时间线（委派、工具调用、token 与耗时）：
 
 ```bash
 # 交互模式：浏览器提交任务 / 中断
 go run . -web :8765 -workspace ./workspace
-# 打开 http://localhost:8765 ，输入任务点「运行」，可点「中断」
-
-# 或启动时自动跑一个任务，同时打开 UI
-go run . -web :8765 -task "在 workspace 写 hello.txt 并读回来"
+# 打开 http://localhost:8765
 ```
-
-<p align="center">
-  <img src="docs/trace-ui.svg" alt="运行轨迹 Web UI 预览" width="640" />
-</p>
-
-## 核心特性
-
-- **Agent-as-Tool**：子智能体对 manager 表现为普通工具（单参数 `task`）
-- **一切即插件**：`ToolRegistry` 统一管理工具，运行时可通过 `create_tool` 动态注册
-- **沙箱工作区**：文件与 shell 操作限制在 `-workspace` 目录内
-- **双协议**：OpenAI-compatible + Anthropic
-- **Token 统计** + **实时轨迹 Web UI**
 
 ## 内置插件
 
@@ -56,55 +29,22 @@ go run . -web :8765 -task "在 workspace 写 hello.txt 并读回来"
 |------|------|
 | `read` | 读取工作区内文本文件 |
 | `write` | 写入/创建文本文件 |
-| `edit` | 按字面量唯一匹配做局部替换（str_replace 风格，可选 replace_all） |
+| `edit` | 按字面量唯一匹配做局部替换（可选 replace_all） |
 | `list_dir` | 列出目录内容 |
-| `shell` | 在工作区内执行 shell 命令（30s 超时） |
+| `shell` | 在工作区内执行命令（30s；Windows 优先 pwsh → powershell → bash → cmd） |
 | `search` | 工作区内递归文本搜索 |
 | `calculator` | 简单四则运算 |
-| **`create_tool`** | **元插件**：模型用 shell 模板为自己编写新工具 |
-| `doctor` | 只读自检：workspace、工具列表、关键环境（不泄露密钥） |
-| `log_evolution` | 向 `EVOLUTION_LOG.md` 追加一条进化记录 |
+| **`create_tool`** | **元插件**：用 shell 模板注册新工具 |
+| `doctor` | 只读自检（不泄露密钥） |
+| `log_evolution` | 向 EVOLUTION_LOG.md 追加进化记录 |
 | `final_answer` | 结束 ReAct 循环 |
-
-### create_tool 示例
-
-模型可以这样给自己造一个数行数的工具：
-
-```json
-{
-  "name": "count_lines",
-  "description": "Count lines in a file",
-  "parameters": {
-    "type": "object",
-    "properties": { "path": { "type": "string" } },
-    "required": ["path"]
-  },
-  "command": "wc -l {{path}}"
-}
-```
-
-注册成功后，后续步骤即可直接调用 `count_lines`。
 
 ## 快速开始
 
 ```bash
 cp .env.example .env
-# 编辑 .env 填入 API_KEY 和 MODEL
-
-go run . -task "在 workspace 里写一个 hello.txt 并读回来"
-# 可选：-workspace ./myws  -web :8765
-```
-
-## 运行测试
-
-```bash
 go test ./... -count=1
+go run . -task "列出 workspace 文件"
 ```
 
-原 Eiffel Tower demo 已迁移到 `TestEiffelTowerDemo`。
-
-## 参考
-
-- [项目介绍页 (GitHub Pages)](https://1parado.github.io/tiny-team/)
-- [smolagents](https://github.com/huggingface/smolagents)
-- [tiktoken-go](https://github.com/pkoukk/tiktoken-go)
+Windows 上 `shell` 会自动选用 PowerShell 7 (`pwsh`) 或 Windows PowerShell；也可用 Git Bash。
