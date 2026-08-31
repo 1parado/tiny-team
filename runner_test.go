@@ -11,7 +11,6 @@ import (
 )
 
 func TestRunControllerStartStop(t *testing.T) {
-	// Slow model so we can stop mid-run.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(2 * time.Second)
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -24,7 +23,7 @@ func TestRunControllerStartStop(t *testing.T) {
 						"type": "function",
 						"function": map[string]any{
 							"name":      "final_answer",
-							"arguments": `{\"answer\":\"ok\"}`,
+							"arguments": `{"answer":"ok"}`,
 						},
 					}},
 				},
@@ -57,7 +56,6 @@ func TestRunControllerStartStop(t *testing.T) {
 	if !ctrl.Stop() {
 		t.Fatal("expected stop true")
 	}
-	// Wait for goroutine to finish
 	deadline := time.Now().Add(5 * time.Second)
 	for ctrl.Running() && time.Now().Before(deadline) {
 		time.Sleep(20 * time.Millisecond)
@@ -65,12 +63,7 @@ func TestRunControllerStartStop(t *testing.T) {
 	if ctrl.Running() {
 		t.Fatal("still running after stop")
 	}
-	errMsg := ctrl.LastError()
-	if errMsg == "" && !strings.Contains(errMsg, "cancel") {
-		if errMsg != "" && !strings.Contains(errMsg, "cancel") && !strings.Contains(errMsg, "interrupt") {
-			t.Logf("lastErr=%q (acceptable if empty race)", errMsg)
-		}
-	}
+	_ = ctrl.LastError()
 	_ = context.Canceled
 }
 
