@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#F2F2F7">
+<title>运行轨迹 · tiny-team</title>
+<style>
+:root{color-scheme:light;--bg:#F2F2F7;--card:#FFF;--label:#1C1C1E;--secondary:#8E8E93;--tertiary:#C7C7CC;--sep:rgba(60,60,67,.14);--fill:rgba(120,120,128,.1);--code:rgba(120,120,128,.08);--blue:#007AFF;--green:#248A3D;--red:#FF3B30;--purple:#AF52DE}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--label);font:15px/1.55 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI","PingFang SC",sans-serif;-webkit-font-smoothing:antialiased}
+header{position:sticky;top:0;z-index:5;background:rgba(242,242,247,.82);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--sep)}
+.nav,.composer,main{max-width:680px;margin:0 auto}
+.nav{padding:14px 20px 8px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{margin:0;font-size:28px;font-weight:800;letter-spacing:-.5px}
+.composer{padding:0 20px 12px}
+textarea{width:100%;min-height:72px;resize:vertical;padding:10px 12px;border-radius:12px;border:1px solid var(--sep);background:var(--card);color:var(--label);font:inherit;outline:none}
+textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,122,255,.15)}
+.row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;font-size:13px;font-weight:600}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--blue);animation:pulse 1.2s ease-in-out infinite}
+.pill.running{background:rgba(0,122,255,.12);color:var(--blue)}
+.pill.done{background:rgba(52,199,89,.15);color:var(--green)}
+.pill.idle{background:var(--fill);color:var(--secondary)}
+.pill.err{background:rgba(255,59,48,.12);color:var(--red)}
+@keyframes pulse{50%{opacity:.35}}
+main{padding:8px 20px 64px}
+.card{background:var(--card);border-radius:16px;padding:12px 14px;margin:8px 0;border-left:3px solid transparent;animation:rise .4s cubic-bezier(.32,.72,0,1)}
+.card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(60,60,67,.12)}
+.card.k-task{border-left-color:var(--blue)}
+.card.k-final{border-left-color:#34C759;background:rgba(52,199,89,.08)}
+.card.k-error{border-left-color:var(--red);background:rgba(255,59,48,.07)}
+.card.k-delegate{border-left-color:var(--purple)}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+.trow{display:flex;align-items:center;gap:9px}
+.mono{flex:none;width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
+.trow b{font-size:15px;font-weight:600}
+.meta{margin-left:auto;color:var(--secondary);font-size:12.5px;white-space:nowrap}
+.failed{color:var(--red);font-size:13px;font-weight:600}
+.text{margin:8px 0 0}
+pre{margin:8px 0 0;padding:8px 10px;background:var(--code);border-radius:8px;font:12.5px/1.5 ui-monospace,Consolas,monospace;color:rgba(60,60,67,.78);white-space:pre-wrap;word-break:break-word;max-height:200px;overflow:auto}
+details{border-top:1px solid var(--sep);margin-top:8px;padding-top:8px}
+summary{cursor:pointer;color:var(--blue);font-size:13px;font-weight:500;list-style:none}
+summary::-webkit-details-marker{display:none}
+.btn{-webkit-appearance:none;border:1px solid var(--sep);background:var(--card);color:var(--blue);font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border-radius:999px;cursor:pointer}
+.btn.primary{background:var(--blue);color:#fff;border-color:transparent}
+.btn.danger{color:var(--red)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.off{background:var(--fill);color:var(--secondary)}
+.empty{margin:24px 0;padding:28px 14px;border-radius:16px;background:var(--card);color:var(--secondary);text-align:center}
+.step-label{margin:18px 0 2px 4px;color:var(--secondary);font-size:13px;font-weight:600}
+.group{margin:8px 0 8px 12px;padding-left:12px;border-left:2px solid rgba(175,82,222,.3)}
+.hint{color:var(--secondary);font-size:12px;margin-left:auto}
+</style>
+</head>
+<body>
+<header>
+<div class="nav"><h1>运行轨迹</h1>
+<div class="tools">
+<button id="toggleAll" class="btn" type="button">全部展开</button>
+<button id="autoScroll" class="btn" type="button">自动滚动 开</button>
+<span id="status" class="pill idle">空闲</span>
+</div></div>
+<div class="composer">
+<textarea id="taskInput" placeholder="输入任务，例如：在 workspace 写 hello.txt 并读回来" rows="3"></textarea>
+<div class="row">
+<button id="runBtn" class="btn primary" type="button">运行</button>
+<button id="stopBtn" class="btn danger" type="button" disabled>中断</button>
+<span class="hint">Ctrl/⌘+Enter 运行</span>
+</div></div>
+</header>
+<main id="feed"><div id="empty" class="empty">输入任务并点击运行</div></main>
+<script>
+var COLORS=['#007AFF','#34C759','#AF52DE','#FF9500','#5856D6','#30B0C7'];
+var colorMap={},seen=0,autoScrollOn=true,allOpen=false,stack=[];
+var feed=document.getElementById('feed'),emptyEl=document.getElementById('empty');
+function colorOf(n){if(!(n in colorMap))colorMap[n]=COLORS[Object.keys(colorMap).length%COLORS.length];return colorMap[n];}
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function pretty(s){try{return JSON.stringify(JSON.parse(s),null,1);}catch(e){return s;}}
+function fmtDur(ms){return ms>=1000?(ms/1000).toFixed(1)+' s':Math.round(ms)+' ms';}
+function meta(ev){var p=[];if(ev.duration_ms)p.push(fmtDur(ev.duration_ms));if(ev.usage&&(ev.usage.prompt_tokens||ev.usage.completion_tokens))p.push((ev.usage.prompt_tokens+ev.usage.completion_tokens)+' tok');return p.length?'<span class="meta">'+p.join(' · ')+'</span>':'';}
+function agentHead(ev,t){var c=colorOf(ev.agent);return '<div class="trow"><span class="mono" style="background:'+c+'1E;color:'+c+'">'+esc(ev.agent.charAt(0).toUpperCase())+'</span><b>'+t+'</b>'+meta(ev)+'</div>';}
+function render(ev){
+  switch(ev.type){
+    case 'run_start':return '<div class="card k-task">'+agentHead(ev,'任务')+'<p class="text">'+esc(ev.text)+'</p></div>';
+    case 'step':return '<div class="step-label">Step '+ev.step+'</div>';
+    case 'assistant':{var tc='';(ev.tool_calls||[]).forEach(function(c){tc+='<details><summary>调用 '+esc(c.name)+'</summary><pre>'+esc(pretty(c.args))+'</pre></details>';});
+      var th=(ev.text&&ev.text.trim())?'<pre>'+esc(ev.text)+'</pre>':'';return '<div class="card">'+agentHead(ev,'思考')+th+tc+'</div>';}
+    case 'tool_result':{var tool='<span class="mono" style="background:var(--fill);color:#636366">'+esc(ev.tool_name.charAt(0).toUpperCase())+'</span>';
+      var fail=ev.is_error?'<span class="failed">失败</span>':'';
+      return '<div class="card'+(ev.is_error?' k-error':'')+'"><div class="trow">'+tool+'<b>'+esc(ev.tool_name)+'</b>'+fail+meta(ev)+'</div><details><summary>参数</summary><pre>'+esc(pretty(ev.args))+'</pre></details><details open><summary>观察</summary><pre>'+esc(ev.text)+'</pre></details></div>';}
+    case 'delegate_start':return '<div class="card k-delegate"><div class="trow"><span class="mono" style="background:rgba(175,82,222,.14);color:var(--purple)">↗</span><b>委派 → '+esc(ev.tool_name)+'</b>'+meta(ev)+'</div><details><summary>子任务</summary><pre>'+esc(pretty(ev.args))+'</pre></details></div>';
+    case 'delegate_end':return '<div class="card k-delegate'+(ev.is_error?' k-error':'')+'"><div class="trow"><span class="mono" style="background:rgba(175,82,222,.14);color:var(--purple)">↩</span><b>委派返回</b>'+(ev.is_error?'<span class="failed">失败</span>':'')+meta(ev)+'</div><details open><summary>报告</summary><pre>'+esc(ev.text)+'</pre></details></div>';
+    case 'final':return '<div class="card k-final">'+agentHead(ev,'最终答案')+'<p class="text">'+esc(ev.text)+'</p></div>';
+    case 'error':return '<div class="card k-error"><div class="trow"><span class="mono" style="background:rgba(255,59,48,.14);color:var(--red)">!</span><b class="failed">错误</b></div><pre>'+esc(ev.text)+'</pre></div>';
+  }
+  return '';
+}
+function parent(){return stack.length?stack[stack.length-1]:feed;}
+function hideEmpty(){if(emptyEl)emptyEl.style.display='none';}
+function clearFeed(){feed.innerHTML='';emptyEl=document.createElement('div');emptyEl.id='empty';emptyEl.className='empty';emptyEl.textContent='等待事件…';feed.appendChild(emptyEl);stack=[];seen=0;}
+function setDetails(o){document.querySelectorAll('details').forEach(function(d){d.open=o;});document.getElementById('toggleAll').textContent=o?'全部折叠':'全部展开';allOpen=o;}
+document.getElementById('toggleAll').onclick=function(){setDetails(!allOpen);};
+document.getElementById('autoScroll').onclick=function(){autoScrollOn=!autoScrollOn;var b=document.getElementById('autoScroll');b.textContent=autoScrollOn?'自动滚动 开':'自动滚动 关';b.classList.toggle('off',!autoScrollOn);};
+function setControls(r){document.getElementById('runBtn').disabled=!!r;document.getElementById('stopBtn').disabled=!r;document.getElementById('taskInput').disabled=!!r;}
+function setStatus(k,t){var s=document.getElementById('status');s.className='pill '+k;if(k==='running')s.innerHTML='<i></i>'+esc(t);else s.textContent=t;}
+document.getElementById('runBtn').onclick=function(){
+  var task=document.getElementById('taskInput').value.trim();if(!task){document.getElementById('taskInput').focus();return;}
+  clearFeed();setControls(true);setStatus('running','启动中');
+  fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task:task})})
+    .then(function(r){return r.text().then(function(t){if(!r.ok)throw new Error(t||r.statusText);});})
+    .then(function(){setStatus('running','运行中');})
+    .catch(function(e){setControls(false);setStatus('err',String(e.message||e));});
+};
+document.getElementById('stopBtn').onclick=function(){
+  fetch('/api/stop',{method:'POST'}).then(function(){setStatus('err','正在中断…');}).catch(function(){});
+};
+document.getElementById('taskInput').addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();document.getElementById('runBtn').click();}});
+function poll(){
+  fetch('/api/trace').then(function(r){return r.json();}).then(function(d){
+    for(var i=seen;i<d.events.length;i++){
+      var ev=d.events[i];hideEmpty();
+      if(ev.type==='delegate_start'){parent().insertAdjacentHTML('beforeend',render(ev));var g=document.createElement('div');g.className='group';parent().appendChild(g);stack.push(g);}
+      else if(ev.type==='delegate_end'){parent().insertAdjacentHTML('beforeend',render(ev));if(stack.length)stack.pop();}
+      else parent().insertAdjacentHTML('beforeend',render(ev));
+    }
+    if(d.events.length>seen&&autoScrollOn)window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+    seen=d.events.length;
+    if(d.running){setControls(true);setStatus('running','运行中 · '+seen+' 个事件');}
+    else if(d.done){setControls(false);
+      if(d.error&&/interrupt|cancel/i.test(d.error))setStatus('err','已中断 · '+seen+' 个事件');
+      else if(d.error)setStatus('err','失败 · '+seen+' 个事件');
+      else setStatus('done','✓ 已完成 · '+seen+' 个事件');
+    }else{setControls(false);setStatus('idle',seen?'空闲 · '+seen+' 个事件':'空闲');}
+    setTimeout(poll,800);
+  }).catch(function(){setTimeout(poll,1500);});
+}
+poll();
+</script>
+</body>
+</html>
