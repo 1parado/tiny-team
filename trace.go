@@ -60,6 +60,15 @@ func (t *Tracer) Record(e TraceEvent) {
 // SetDone marks the run as finished.
 func (t *Tracer) SetDone() { t.mu.Lock(); t.done = true; t.mu.Unlock() }
 
+// Reset clears events and marks the tracer not done (for a new run).
+func (t *Tracer) Reset() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.events = nil
+	t.done = false
+	t.depth = 0
+}
+
 // Snapshot copies all recorded events and the done flag.
 func (t *Tracer) Snapshot() ([]TraceEvent, bool) {
 	t.mu.Lock()
