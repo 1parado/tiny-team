@@ -14,7 +14,7 @@ import (
 // tiny-team — a minimal multi-agent framework in Go.
 //
 // Agents call agents like tools; everything is a plugin.
-// Built-in plugins: read, write, edit, list_dir, shell, search, calculator, create_tool.
+// Built-in plugins: read, write, edit, list_dir, shell, search, calculator, create_tool, doctor, log_evolution.
 //
 // Usage:
 //
