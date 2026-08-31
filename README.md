@@ -17,7 +17,7 @@
 
 Go 编写的迷你多智能体框架：管理者将子智能体当作工具调用，各成员独立运行 ReAct 循环。
 
-**插件化工具系统**：内置 `read` / `write` / `edit` / `list_dir` / `shell` / `search` / `calculator`，并提供元插件 `create_tool`，让模型在运行时为自己编写新的底层工具。
+**插件化工具系统**：内置 `read` / `write` / `edit` / `list_dir` / `shell` / `search` / `calculator` / `doctor` / `log_evolution`，并提供元插件 `create_tool`，让模型在运行时为自己编写新的底层工具。
 
 ## 项目主页
 
@@ -33,10 +33,6 @@ Go 编写的迷你多智能体框架：管理者将子智能体当作工具调�
 go run . -web :8765 -task "在 workspace 写 hello.txt 并读回来"
 # 打开 http://localhost:8765
 ```
-
-<p align="center">
-  <img src="docs/trace-ui.svg" alt="运行轨迹 Web UI 预览" width="640" />
-</p>
 
 ## 核心特性
 
@@ -58,6 +54,8 @@ go run . -web :8765 -task "在 workspace 写 hello.txt 并读回来"
 | `search` | 工作区内递归文本搜索 |
 | `calculator` | 简单四则运算 |
 | **`create_tool`** | **元插件**：模型用 shell 模板为自己编写新工具 |
+| `doctor` | 只读自检：workspace、工具列表、关键环境（不泄露密钥） |
+| `log_evolution` | 向 `EVOLUTION_LOG.md` 追加一条进化记录 |
 | `final_answer` | 结束 ReAct 循环 |
 
 ### create_tool 示例
@@ -94,8 +92,6 @@ go run . -task "在 workspace 里写一个 hello.txt 并读回来"
 ```bash
 go test ./... -count=1
 ```
-
-原 Eiffel Tower demo 已迁移到 `TestEiffelTowerDemo`。
 
 ## 参考
 
