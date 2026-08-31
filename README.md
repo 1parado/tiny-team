@@ -17,7 +17,7 @@
 
 Go 编写的迷你多智能体框架：管理者将子智能体当作工具调用，各成员独立运行 ReAct 循环。
 
-**插件化工具系统**：内置 `read` / `write` / `list_dir` / `shell` / `search` / `calculator`，并提供元插件 `create_tool`，让模型在运行时为自己编写新的底层工具。
+**插件化工具系统**：内置 `read` / `write` / `edit` / `list_dir` / `shell` / `search` / `calculator`，并提供元插件 `create_tool`，让模型在运行时为自己编写新的底层工具。
 
 ## 项目主页
 
@@ -52,6 +52,7 @@ go run . -web :8765 -task "在 workspace 写 hello.txt 并读回来"
 |------|------|
 | `read` | 读取工作区内文本文件 |
 | `write` | 写入/创建文本文件 |
+| `edit` | 按字面量唯一匹配做局部替换（str_replace 风格，可选 replace_all） |
 | `list_dir` | 列出目录内容 |
 | `shell` | 在工作区内执行 shell 命令（30s 超时） |
 | `search` | 工作区内递归文本搜索 |
