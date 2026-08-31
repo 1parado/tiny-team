@@ -13,6 +13,10 @@ import (
 	"time"
 )
 
+// ---------------------------------------------------------------------------
+// search
+// ---------------------------------------------------------------------------
+
 type searchTool struct{ workspace string }
 
 func NewSearchTool(workspace string) Tool { return &searchTool{workspace: workspace} }
@@ -97,6 +101,10 @@ func (t *searchTool) Execute(_ context.Context, argsJSON string) (string, error)
 	return out, nil
 }
 
+// ---------------------------------------------------------------------------
+// calculator
+// ---------------------------------------------------------------------------
+
 type calculatorTool struct{}
 
 func NewCalculatorTool() Tool { return calculatorTool{} }
@@ -104,154 +112,50 @@ func NewCalculatorTool() Tool { return calculatorTool{} }
 func (calculatorTool) Spec() FunctionSpec {
 	return FunctionSpec{
 		Name:        "calculator",
-		Description: "Evaluate a simple arithmetic expression with + - * / and parentheses.",
+		Description: "Compute arithmetic on two numbers. Supports +, -, *, /.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"expression": map[string]any{"type": "string", "description": "Arithmetic expression, e.g. \"(1+2)*3\"."},
+				"a":  map[string]any{"type": "number", "description": "First operand."},
+				"b":  map[string]any{"type": "number", "description": "Second operand."},
+				"op": map[string]any{"type": "string", "description": "One of \"+\", \"-\", \"*\", \"/\"."},
 			},
-			"required": []string{"expression"},
+			"required": []string{"a", "b", "op"},
 		},
 	}
 }
 
 func (calculatorTool) Execute(_ context.Context, argsJSON string) (string, error) {
 	var args struct {
-		Expression string `json:"expression"`
+		A  float64 `json:"a"`
+		B  float64 `json:"b"`
+		Op string  `json:"op"`
 	}
 	if err := json.Unmarshal([]byte(argsJSON), &args); err != nil {
 		return "", err
 	}
-	expr := strings.TrimSpace(args.Expression)
-	if expr == "" {
-		return "", fmt.Errorf("empty expression")
+	var out float64
+	switch args.Op {
+	case "+":
+		out = args.A + args.B
+	case "-":
+		out = args.A - args.B
+	case "*":
+		out = args.A * args.B
+	case "/":
+		if args.B == 0 {
+			return "", fmt.Errorf("division by zero")
+		}
+		out = args.A / args.B
+	default:
+		return "", fmt.Errorf("unsupported op %q", args.Op)
 	}
-	v, err := evalArith(expr)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%g", v), nil
+	return fmt.Sprintf("%g", out), nil
 }
 
-func evalArith(expr string) (float64, error) {
-	p := &arithParser{s: expr}
-	v, err := p.parseExpr()
-	if err != nil {
-		return 0, err
-	}
-	p.skip()
-	if p.i < len(p.s) {
-		return 0, fmt.Errorf("unexpected trailing input at %d", p.i)
-	}
-	return v, nil
-}
-
-type arithParser struct {
-	s string
-	i int
-}
-
-func (p *arithParser) skip() {
-	for p.i < len(p.s) && (p.s[p.i] == ' ' || p.s[p.i] == '\t') {
-		p.i++
-	}
-}
-
-func (p *arithParser) parseExpr() (float64, error) {
-	v, err := p.parseTerm()
-	if err != nil {
-		return 0, err
-	}
-	for {
-		p.skip()
-		if p.i >= len(p.s) {
-			return v, nil
-		}
-		op := p.s[p.i]
-		if op != '+' && op != '-' {
-			return v, nil
-		}
-		p.i++
-		w, err := p.parseTerm()
-		if err != nil {
-			return 0, err
-		}
-		if op == '+' {
-			v += w
-		} else {
-			v -= w
-		}
-	}
-}
-
-func (p *arithParser) parseTerm() (float64, error) {
-	v, err := p.parseFactor()
-	if err != nil {
-		return 0, err
-	}
-	for {
-		p.skip()
-		if p.i >= len(p.s) {
-			return v, nil
-		}
-		op := p.s[p.i]
-		if op != '*' && op != '/' {
-			return v, nil
-		}
-		p.i++
-		w, err := p.parseFactor()
-		if err != nil {
-			return 0, err
-		}
-		if op == '*' {
-			v *= w
-		} else {
-			if w == 0 {
-				return 0, fmt.Errorf("division by zero")
-			}
-			v /= w
-		}
-	}
-}
-
-func (p *arithParser) parseFactor() (float64, error) {
-	p.skip()
-	if p.i >= len(p.s) {
-		return 0, fmt.Errorf("unexpected end of expression")
-	}
-	if p.s[p.i] == '(' {
-		p.i++
-		v, err := p.parseExpr()
-		if err != nil {
-			return 0, err
-		}
-		p.skip()
-		if p.i >= len(p.s) || p.s[p.i] != ')' {
-			return 0, fmt.Errorf("missing )")
-		}
-		p.i++
-		return v, nil
-	}
-	if p.s[p.i] == '+' {
-		p.i++
-		return p.parseFactor()
-	}
-	if p.s[p.i] == '-' {
-		p.i++
-		v, err := p.parseFactor()
-		return -v, err
-	}
-	start := p.i
-	for p.i < len(p.s) && ((p.s[p.i] >= '0' && p.s[p.i] <= '9') || p.s[p.i] == '.') {
-		p.i++
-	}
-	if start == p.i {
-		return 0, fmt.Errorf("expected number at %d", p.i)
-	}
-	var v float64
-	_, err := fmt.Sscanf(p.s[start:p.i], "%f", &v)
-	return v, err
-}
+// ---------------------------------------------------------------------------
+// create_tool
+// ---------------------------------------------------------------------------
 
 type createTool struct {
 	registry  *ToolRegistry
@@ -285,8 +189,7 @@ func (t *createTool) Spec() FunctionSpec {
 				},
 				"command": map[string]any{
 					"type": "string",
-					"description": "Shell command template. Use {{param}} placeholders that match property names. " +
-						"Example: \"wc -l {{path}}\"",
+					"description": "Shell command template. Use {{param}} placeholders. Example: \"wc -l {{path}}\"",
 				},
 			},
 			"required": []string{"name", "description", "parameters", "command"},
