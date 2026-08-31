@@ -145,12 +145,13 @@ func (r *ToolRegistry) MustRegister(t Tool) {
 }
 
 // DefaultRegistry builds a registry pre-loaded with the standard plugins:
-// read, write, list_dir, shell, search, calculator, and create_tool.
+// read, write, edit, list_dir, shell, search, calculator, and create_tool.
 // workspace is the root directory that file/shell tools are confined to.
 func DefaultRegistry(workspace string) *ToolRegistry {
 	r := NewToolRegistry()
 	r.MustRegister(NewReadTool(workspace))
 	r.MustRegister(NewWriteTool(workspace))
+	r.MustRegister(NewEditTool(workspace))
 	r.MustRegister(NewListDirTool(workspace))
 	r.MustRegister(NewShellTool(workspace))
 	r.MustRegister(NewSearchTool(workspace))

@@ -14,7 +14,7 @@ import (
 // tiny-team — a minimal multi-agent framework in Go.
 //
 // Agents call agents like tools; everything is a plugin.
-// Built-in plugins: read, write, list_dir, shell, search, calculator, create_tool.
+// Built-in plugins: read, write, edit, list_dir, shell, search, calculator, create_tool.
 //
 // Usage:
 //
@@ -45,12 +45,12 @@ func main() {
 		log.Fatalf("workspace: %v", err)
 	}
 
-	// Everything-is-a-plugin: default registry with read/write/shell/search/...
+	// Everything-is-a-plugin: default registry with read/write/edit/shell/search/...
 	registry := DefaultRegistry(*workspace)
 
 	agent := &Agent{
 		Name:        "assistant",
-		Description: "A capable assistant with file, shell, search plugins and the ability to author new tools.",
+		Description: "A capable assistant with file, shell, search, edit plugins and the ability to author new tools.",
 		Model:       model,
 		Registry:    registry,
 		Workspace:   *workspace,
