@@ -30,9 +30,17 @@ Go 编写的迷你多智能体框架：管理者将子智能体当作工具调�
 使用 `-web :8765` 启动后，浏览器可查看运行中的 ReAct 时间线（委派、工具调用、token 与耗时）：
 
 ```bash
+# 交互模式：浏览器提交任务 / 中断
+go run . -web :8765 -workspace ./workspace
+# 打开 http://localhost:8765 ，输入任务点「运行」，可点「中断」
+
+# 或启动时自动跑一个任务，同时打开 UI
 go run . -web :8765 -task "在 workspace 写 hello.txt 并读回来"
-# 打开 http://localhost:8765
 ```
+
+<p align="center">
+  <img src="docs/trace-ui.svg" alt="运行轨迹 Web UI 预览" width="640" />
+</p>
 
 ## 核心特性
 
@@ -92,6 +100,8 @@ go run . -task "在 workspace 里写一个 hello.txt 并读回来"
 ```bash
 go test ./... -count=1
 ```
+
+原 Eiffel Tower demo 已迁移到 `TestEiffelTowerDemo`。
 
 ## 参考
 
